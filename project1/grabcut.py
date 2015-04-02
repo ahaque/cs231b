@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-import numpy
+import numpy as np
 import argparse
+from graph_tool.all import *
 
 # get_args function
 # Intializes the arguments parser and reads in the arguments from the command
@@ -74,7 +75,9 @@ class RectSelector:
         self.ax.patches = []
         self.ax.add_patch(selected_rectangle)
         self.canvas.draw()
-        self.rectangle = [self.start_x, self.start_y, x, y]
+        xs = sorted([self.start_x, x])
+        ys = sorted([self.start_y, y])
+        self.rectangle = [xs[0], ys[0], xs[1], ys[1]]
 
         # Unblock plt
         plt.close()
@@ -116,11 +119,48 @@ def get_user_selection(img):
     # Return the selected rectangle
     return selector.rectangle
 
+def initialization(img, bbox, debug=False):
+    xmin, ymin, xmax, ymax = bbox
+    height, width, _ = img.shape
+    alpha = np.zeros((height, width), dtype=int)
+
+    for h in range(height): # Rows
+        for w in range(width): # Columns
+            if (w > xmin) and (w < xmax) and (h > ymin) and (h < ymax):
+                # Foreground
+                alpha[h,w] = 1
+            else:
+                # Background
+                alpha[h,w] = 0
+
+    if debug:
+        plt.imshow(alpha*265)
+        plt.show()
+        for i in xrange(alpha.shape[0]):
+            for j in xrange(alpha.shape[1]):
+                print alpha[i,j],
+            print ''
+
+# Currently creates a meaningless graph
+def create_graph():
+    g = Graph(directed=False)
+    v1 = g.add_vertex()
+    v2 = g.add_vertex()
+
+    e = g.add_edge(v1, v2)
+
+    vprop_vint = g.new_vertex_property("vector<float>")
+    vprop_vint[g.vertex(1)] = [1.2, 3.5]
+
+
+
 def main():
     args = get_args()
     img = load_image(*args.image_file)
-    print img.shape
-    print get_user_selection(img)
+    
+    bbox = get_user_selection(img)
+
+    initialization(img, bbox)
 
 if __name__ == '__main__':
     main()
