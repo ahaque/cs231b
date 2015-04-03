@@ -3,10 +3,10 @@ import numpy as np
 class Gaussian:
     # mean: mean for the gaussian
     # sigma: Covariance matrix 
-    def __init__(self, mean=np.zeros((3,1)), sigma=np.diag((3,3))):
-        self.mean = mean
-        self.sigma = sigma
-
+    def __init__(self, mean=np.zeros((3,1)), sigma=np.eye(3)):
+        self.mean = np.array(mean)
+        self.sigma = np.array(sigma)
+        
         self.sigma_det = np.linalg.det(sigma)
         self.sigma_inv = np.linalg.inv(sigma)
 
@@ -14,8 +14,18 @@ class Gaussian:
         self.TWO_PI_3 = (2*np.pi)**self.k
         self.term1 = 1/np.sqrt(self.TWO_PI_3 * self.sigma_det)
 
-    def compute_probability(x):
-        return self.term1 * np.exp(-0.5 * (x - mean).T * self.sigma_inv * (x - mean))
+    def compute_probability(self, x, debug=False):
+        x = np.array(x)
+        
+        if debug:
+            print 'term1',self.term1
+            print 'diff',(x - self.mean)
+            print 'diff',(x - self.mean).T
+            print 'inv',self.sigma_inv
+            print 'mult',np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean))
+            print ''
+        
+        return self.term1 * np.exp(-0.5 * np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean).T))
 
     def update_parameters(self, data):
         self.mean = np.mean(data, axis=0)
@@ -36,7 +46,7 @@ def gaussian_test():
 
     if not np.mean(abs(mean - g.mean)) < 1e-2 and np.mean(abs(sigma - g.sigma)):
         print 'Error'
-        
+
 def main():
     gaussian_test()
 
