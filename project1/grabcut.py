@@ -156,8 +156,6 @@ def create_graph():
     vprop_vint = g.new_vertex_property("vector<float>")
     vprop_vint[g.vertex(1)] = [1.2, 3.5]
 
-
-
 def main():
     args = get_args()
     img = load_image(*args.image_file)
