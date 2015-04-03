@@ -106,6 +106,10 @@ class RectSelector:
             self.canvas.draw()
 
 def get_user_selection(img):
+    if img.shape[2] != 3:
+        print 'This image does not have all the RGB channels, you do not need to work on it.'
+        return
+    
     # Initialize rectangular selector
     fig, ax = plt.subplots()
     selector = RectSelector(ax)
