@@ -16,7 +16,7 @@ class Gaussian:
 
     def compute_probability(self, x, debug=False):
         x = np.array(x)
-        
+
         if debug:
             print 'term1',self.term1
             print 'diff',(x - self.mean)
@@ -25,7 +25,7 @@ class Gaussian:
             print 'mult',np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean))
             print ''
         
-        return self.term1 * np.exp(-0.5 * np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean).T))
+        return self.term1 * np.exp(-0.5 * np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean)))
 
     def update_parameters(self, data):
         self.mean = np.mean(data, axis=0)
