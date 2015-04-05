@@ -31,6 +31,17 @@ class GMM:
     def get_component(self, x):
         return np.argmax([g.compute_probability(x) for g in self.gaussians])
 
+    def update_components(self, X, assignments):
+        num_pixels = float(X.shape[0])
+
+        for i, distribution in enumerate(self.gaussians):
+            distribution.update_parameters(X[assignments==i])
+            self.weights[i] = np.sum(assignments==i)/num_pixels
+
+    def compute_probability(self, x):
+        return np.dot(self.weights, [g.compute_probability(x) for g in self.gaussians])
+
+
 def GMM_test():
     g = GMM(5)
 

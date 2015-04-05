@@ -134,8 +134,8 @@ def initialization(img, bbox, debug=False):
     height, width, _ = img.shape
     alpha = np.zeros((height, width), dtype=np.int8)
 
-    for h in range(height): # Rows
-        for w in range(width): # Columns
+    for h in xrange(height): # Rows
+        for w in xrange(width): # Columns
             if (w > xmin) and (w < xmax) and (h > ymin) and (h < ymax):
                 # Foreground
                 alpha[h,w] = 1
@@ -160,15 +160,36 @@ def initialization(img, bbox, debug=False):
     return alpha, foreground_gmm, background_gmm
 
 # Currently creates a meaningless graph
-def create_graph():
-    g = Graph(directed=False)
-    v1 = g.add_vertex()
-    v2 = g.add_vertex()
+def create_graph(img, neighbor_list):
+    g = Graph(directed=True)
 
-    e = g.add_edge(v1, v2)
+    SOURCE = -1
+    SINK = -2
+    source = g.add_vertex()
+    sink = g.add_vertex()
+    edge_weights = g.new_edge_property("float")
 
-    vprop_vint = g.new_vertex_property("vector<float>")
-    vprop_vint[g.vertex(1)] = [1.2, 3.5]
+    edge_map = dict()
+    node_matrix = []
+    for h in xrange(img.shape[0]):
+        current_row = []
+        node_matrix.append(current_row)
+        for w in xrange(img.shape[1]):
+            current_row.append(g.add_vertex())
+
+
+    # Create edges
+    for h in xrange(img.shape[0]):
+        for w in xrange(img.shape[1]):
+            # Create tweights
+            curr_node = node_matrix[h][w]
+            edge_map[(SOURCE,SOURCE,h,w)] = g.add_edge(source, curr_node)
+            edge_map[(h,w,SINK,SINK)] = g.add_edge(curr_node, sink)
+            
+            for nh, nw in neighbor_list[(h,w)].keys():
+                edge_map[(h,w,nh,nw)] = g.add_edge(source, node_matrix[nh][nw])
+
+    return g, edge_weights, edge_map
 
 # alpha,k - specific values
 def get_pi(alpha, k, gmms):
@@ -201,16 +222,22 @@ def get_energy(alpha, k, gmms, z, smoothness_matrix):
     V = 0
     for h in xrange(z.shape[0]):
         for w in xrange(z.shape[1]):
+            # Loop through neighbors
             for (nh, nw) in smoothness_matrix[(h,w)].keys():
-                print (h,w), (nh, nw)
+                if alpha[h,w] != alpha[nh,nw]:
+                    V += smoothness_matrix[(h,w)][(nh, nw)]
+    V = gamma * V
 
-def compute_smoothness(z):
+    return U + V
+
+def compute_smoothness(z, debug=False):
     height, width, _ = z.shape
     global beta
     smoothness_matrix = dict()
 
     for h in xrange(z.shape[0]):
-        print 'In row', h
+        if debug:
+            print 'Computing row',h
         for w in xrange(z.shape[1]):
             smoothness_matrix[(h,w)] = dict()
             for hh in [-1,0,1]:
@@ -240,6 +267,9 @@ def main():
 
     print 'Computing smoothness matrix...'
     smoothness_matrix = compute_smoothness(img)
+
+    print 'Creating image graph'
+    graph, edge_weights, edge_map = create_graph(img, smoothness_matrix)
     
     print 'Starting EM'
     while True:
@@ -252,9 +282,34 @@ def main():
                     k[h,w] = background_gmm.get_component(img[h,w,:])
 
         # 2. Learn GMM parameters
-        get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
+        foreground_assignments = -1*np.ones(k.shape)
+        foreground_assignments[alpha==1] = k[alpha==1]
+
+        background_assignments = -1*np.zeros(k.shape)
+        background_assignments[alpha==0] = k[alpha==0]
+
+        foreground_gmm.update_components(img, foreground_assignments)
+        background_gmm.update_components(img, background_assignments)
 
         # 3. Estimate segmentation using min cut
+        # print get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
+        
+        # Update weights
+        # # TODO: move energy computation here and update edge weights
+        for h in xrange(img.shape[0]):
+            for w in xrange(img.shape[1]):
+                # Source: Compute U for curr node
+                w1 = foreground_gmm.compute_probability(img[h,w])
+                w2 = background_gmm.compute_probability(img[h,w])
+
+                # Sinck: Compute U for curr node
+                edge_weights[edge_map[(-1,-1,h,w)]] = w1 # Source
+                edge_weights[edge_map[(h,w,-2-2)]] = w2 # Sink
+
+        # for edge in edge_map:
+        #     (sh,sw,dh,dw) = edge
+        #     edge_weights[edge_map[edge]] = 
+        
 
         break
 
