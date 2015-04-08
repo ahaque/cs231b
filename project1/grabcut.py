@@ -9,6 +9,9 @@ import argparse
 gamma = 50
 beta = 0 # TODO: optimize beta Boykov and Jolly 2001
 
+SOURCE = -1
+SINK = -2
+
 
 # get_args function
 # Intializes the arguments parser and reads in the arguments from the command
@@ -161,14 +164,16 @@ def initialization(img, bbox, debug=False):
 
 # Currently creates a meaningless graph
 def create_graph(img, neighbor_list):
-    g = Graph(directed=True)
+    global SOURCE
+    global SINK
 
-    SOURCE = -1
-    SINK = -2
+    g = Graph(directed=False)
+
     source = g.add_vertex()
     sink = g.add_vertex()
     edge_weights = g.new_edge_property("float")
 
+    # Creating nodes
     edge_map = dict()
     node_matrix = []
     for h in xrange(img.shape[0]):
@@ -176,7 +181,6 @@ def create_graph(img, neighbor_list):
         node_matrix.append(current_row)
         for w in xrange(img.shape[1]):
             current_row.append(g.add_vertex())
-
 
     # Create edges
     for h in xrange(img.shape[0]):
@@ -187,7 +191,9 @@ def create_graph(img, neighbor_list):
             edge_map[(h,w,SINK,SINK)] = g.add_edge(curr_node, sink)
             
             for nh, nw in neighbor_list[(h,w)].keys():
-                edge_map[(h,w,nh,nw)] = g.add_edge(source, node_matrix[nh][nw])
+                if (h,w,nh,nw) not in edge_map:
+                    edge_map[(h,w,nh,nw)] = g.add_edge(source, node_matrix[nh][nw])
+                    edge_map[(nh,nw,h,w)] = edge_map[(h,w,nh,nw)]
 
     return g, edge_weights, edge_map
 
@@ -230,6 +236,21 @@ def get_energy(alpha, k, gmms, z, smoothness_matrix):
 
     return U + V
 
+def get_unary_energy(alpha, k, gmms, z, pixel):
+    h,w = pixel
+    return -np.log(get_pi(alpha, k[h,w], gmms)) \
+            + 0.5 * np.log(get_cov_det(alpha, k[h,w], gmms)) \
+            + get_log_prob(alpha, k[h,w], gmms, z[h,w,:])
+
+def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
+    (h,w) = pixel_1
+    (nh,nw) = pixel_2
+    V = 0
+    if alpha[h,w] != alpha[nh,nw]:
+        V = smoothness_matrix[(h,w)][(nh, nw)]
+
+    return gamma *V
+
 def compute_smoothness(z, debug=False):
     height, width, _ = z.shape
     global beta
@@ -270,7 +291,12 @@ def main():
 
     print 'Creating image graph'
     graph, edge_weights, edge_map = create_graph(img, smoothness_matrix)
+
+    global SOURCE
+    global SINK
     
+    FOREGROUND = 1
+    BACKGROUND = 0
     print 'Starting EM'
     while True:
         # 1. Assigning GMM components to pixels
@@ -296,15 +322,30 @@ def main():
         
         # Update weights
         # # TODO: move energy computation here and update edge weights
+        theta = (background_gmm, foreground_gmm)
         for h in xrange(img.shape[0]):
             for w in xrange(img.shape[1]):
                 # Source: Compute U for curr node
-                w1 = foreground_gmm.compute_probability(img[h,w])
-                w2 = background_gmm.compute_probability(img[h,w])
+                w1 = get_unary_energy(1, k, theta, img, (h, w)) # Foregound
+                w2 = get_unary_energy(0, k, theta, img, (h, w)) # Background
 
-                # Sinck: Compute U for curr node
-                edge_weights[edge_map[(-1,-1,h,w)]] = w1 # Source
-                edge_weights[edge_map[(h,w,-2-2)]] = w2 # Sink
+                # Sink: Compute U for curr node
+                edge_weights[edge_map[(SOURCE,SOURCE,h,w)]] = w1 # Source
+                edge_weights[edge_map[(h,w,SINK,SINK)]] = w2 # Sink
+
+                # Compute pairwise edge weights
+                for (nh, nw) in smoothness_matrix[(h,w)].keys():
+                    edge_weights[edge_map[(h,w,nh,nw)]] = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
+
+        # Graph has been created, run minCut
+        print 'Performing minCut'
+        mc, partition = min_cut(graph, edge_weights)
+
+        print 'Drawing graph'
+        pos = g.vertex_properties["pos"]
+        graph_draw(g, pos=pos, edge_pen_width=weight, vertex_fill_color=part,
+                output="example-min-cut.pdf")
+        
 
         # for edge in edge_map:
         #     (sh,sw,dh,dw) = edge
