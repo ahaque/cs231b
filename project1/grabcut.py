@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
+import time
+
 # Global constants
 gamma = 50
-beta = 0 # TODO: optimize beta Boykov and Jolly 2001
+beta = 1e5 # TODO: optimize beta Boykov and Jolly 2001
 
 SOURCE = -1
 SINK = -2
@@ -167,10 +169,11 @@ def create_graph(img, neighbor_list):
     global SOURCE
     global SINK
 
-    g = Graph(directed=False)
+    g = Graph(directed=True)
 
     source = g.add_vertex()
     sink = g.add_vertex()
+
     edge_weights = g.new_edge_property("float")
 
     # Creating nodes
@@ -191,9 +194,9 @@ def create_graph(img, neighbor_list):
             edge_map[(h,w,SINK,SINK)] = g.add_edge(curr_node, sink)
             
             for nh, nw in neighbor_list[(h,w)].keys():
-                if (h,w,nh,nw) not in edge_map:
-                    edge_map[(h,w,nh,nw)] = g.add_edge(source, node_matrix[nh][nw])
-                    edge_map[(nh,nw,h,w)] = edge_map[(h,w,nh,nw)]
+                # if (h,w,nh,nw) not in edge_map:
+                edge_map[(h,w,nh,nw)] = g.add_edge(source, node_matrix[nh][nw])
+                    # edge_map[(nh,nw,h,w)] = edge_map[(h,w,nh,nw)]
 
     return g, edge_weights, edge_map
 
@@ -251,10 +254,24 @@ def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
 
     return gamma *V
 
+def compute_beta(z, debug=False):
+    accumulator = 0
+    for h in xrange(z.shape[0]):
+        if debug: print 'Computing row', h
+        for w in xrange(z.shape[1]):
+            for h2 in xrange(z.shape[0]):
+                for w2 in xrange(z.shape[1]):
+                    accumulator = np.linalg.norm(z[h,w,:] - z[h2,w2,:])**2
+
+    beta = (2*(accumulator/((z.shape[0]*z.shape[1])**2)))**-1
+            
+
 def compute_smoothness(z, debug=False):
     height, width, _ = z.shape
     global beta
     smoothness_matrix = dict()
+
+    print 'beta',beta
 
     for h in xrange(z.shape[0]):
         if debug:
@@ -272,6 +289,8 @@ def compute_smoothness(z, debug=False):
 
                     smoothness_matrix[(h,w)][(h+hh, w+ww)] = \
                         np.exp(-1 * beta * np.linalg.norm(z[h,w,:] - z[h+hh,w+ww,:]))
+                    if debug:
+                        print (h,w),'->',(h+hh,w+ww),":",z[h,w,:], z[h+hh,w+ww,:], smoothness_matrix[(h,w)][(h+hh, w+ww)]
 
     return smoothness_matrix
 
@@ -279,8 +298,8 @@ def main():
     args = get_args()
     img = load_image(*args.image_file)
     
-    # bbox = get_user_selection(img)
-    bbox = [10, 10, img.shape[0]-10, img.shape[1]-10]
+    bbox = get_user_selection(img)
+    # bbox = [10, 10, img.shape[0]-10, img.shape[1]-10]
 
     print 'Initializing gmms'
     alpha, foreground_gmm, background_gmm = initialization(img, bbox)
@@ -298,7 +317,8 @@ def main():
     FOREGROUND = 1
     BACKGROUND = 0
     print 'Starting EM'
-    while True:
+    for iteration in xrange(1,101):
+        start_time = time.time()
         # 1. Assigning GMM components to pixels
         for h in xrange(img.shape[0]):
             for w in xrange(img.shape[1]):
@@ -336,23 +356,55 @@ def main():
                 # Compute pairwise edge weights
                 for (nh, nw) in smoothness_matrix[(h,w)].keys():
                     edge_weights[edge_map[(h,w,nh,nw)]] = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
+                    # print (h,w),'->',(nh,nw),':',edge_weights[edge_map[(h,w,nh,nw)]]
 
         # Graph has been created, run minCut
         print 'Performing minCut'
-        mc, partition = min_cut(graph, edge_weights)
+        src, tgt = graph.vertex(0), graph.vertex(1)
+        cap = edge_weights
+        res = boykov_kolmogorov_max_flow(graph, src, tgt, cap)
+        partition = min_st_cut(graph, src, cap, res)
+        #mc = sum([cap[e] - res[e] for e in graph.edges() if part[e.source()] != part[e.target()]])
+        #
+        end_time = time.time()
 
-        print 'Drawing graph'
-        pos = g.vertex_properties["pos"]
-        graph_draw(g, pos=pos, edge_pen_width=weight, vertex_fill_color=part,
-                output="example-min-cut.pdf")
+        print 'Iteration %d time:'%iteration, end_time - start_time
+
+        if iteration % 1 == 0:
+            print 'Drawing graph'
+            result = np.zeros((img.shape[0], img.shape[1]), 3)
+            for h in xrange(img.shape[0]):
+                for w in xrange(img.shape[1]):
+                    index = h*img.shape[1] + w
+                    if partition[graph.vertex(index)]:
+                        result[h,w,:] = 255
+
+            plt.imshow(result)
+            plt.show()
+
+
+        # pos = graph.new_vertex_property("vector<double>")
+        # for h in xrange(img.shape[0]):
+        #     for w in xrange(img.shape[1]):
+        #         index = h*img.shape[1] + w
+        #         pos[graph.vertex(index)] = np.array([h,w,0])
+                
+        # # _, pos = triangulation([for img.shape(0)])
+        # res.a = cap.a - res.a  # the actual flow
+        # graph_draw(graph, pos=pos, edge_pen_width=prop_to_size(cap, mi=3, ma=10, power=1),
+        #                 edge_text=res, vertex_fill_color=partition, vertex_text=graph.vertex_index,
+        #                 vertex_font_size=18, edge_font_size=18, fmt="png", output="example-min-st-cut.pdf")
         
 
         # for edge in edge_map:
         #     (sh,sw,dh,dw) = edge
         #     edge_weights[edge_map[edge]] = 
-        
 
-        break
+# TODO:
+# gt : clear namespace
+# 4 neighbors
+# Optimize node matrix creation with index computation while creating graph
+# Optimize pairwise edge weight computation
 
 if __name__ == '__main__':
     main()
