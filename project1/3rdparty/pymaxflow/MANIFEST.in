@@ -1,0 +1,11 @@
+include CHANGES.txt
+include README.txt
+include block.h
+include graph.cpp
+include graph.h
+include instances.inc
+include maxflow.cpp
+include pymaxflow.pyx
+include setup.py
+include test.py
+
