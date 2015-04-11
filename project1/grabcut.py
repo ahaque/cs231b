@@ -257,6 +257,9 @@ def compute_beta(z, debug=False):
             
 
 def compute_smoothness(z, debug=False):
+    EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
+    FOUR_NEIGHBORHOOD = [(-1,0), (0,-1), (0,1), (1,0)]
+
     height, width, _ = z.shape
     global beta
     smoothness_matrix = dict()
@@ -264,24 +267,31 @@ def compute_smoothness(z, debug=False):
     beta = compute_beta(z)
     print 'beta',beta
 
-    for h in xrange(z.shape[0]):
+    for h in xrange(height):
         if debug:
             print 'Computing row',h
-        for w in xrange(z.shape[1]):
-            smoothness_matrix[(h,w)] = dict()
-            for hh in [-1,0,1]:
-                for ww in [-1,0,1]:
-                    if hh == 0 and ww == 0:
-                        continue
-                    if w + ww < 0 or w + ww >= width:
-                        continue
-                    if h + hh < 0 or h + hh >= height:
-                        continue
+        for w in xrange(width):
+            if (h,w) not in smoothness_matrix:
+                smoothness_matrix[(h,w)] = dict()
+            for hh,ww in EIGHT_NEIGHBORHOOD:
+                nh, nw = h + hh, w + ww
+                if nw < 0 or nw >= width:
+                    continue
+                if nh < 0 or nh >= height:
+                    continue
 
-                    smoothness_matrix[(h,w)][(h+hh, w+ww)] = \
-                        np.exp(-1 * beta * np.linalg.norm(z[h,w,:] - z[h+hh,w+ww,:]))
-                    if debug:
-                        print (h,w),'->',(h+hh,w+ww),":",z[h,w,:], z[h+hh,w+ww,:], smoothness_matrix[(h,w)][(h+hh, w+ww)]
+                if (nh,nw) not in smoothness_matrix:
+                    smoothness_matrix[(nh,nw)] = dict()
+
+                if (h,w) in smoothness_matrix[(nh,nw)]:
+                    continue
+
+                smoothness_matrix[(h,w)][(nh, nw)] = \
+                    np.exp(-1 * beta * np.linalg.norm(z[h,w,:] - z[nh,nw,:]))
+                smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
+
+                if debug:
+                    print (h,w),'->',(nh,nw),":",z[h,w,:], z[nh,nw,:], smoothness_matrix[(h,w)][(nh, nw)]
 
     return smoothness_matrix
 
@@ -297,7 +307,12 @@ def main():
     k = np.zeros((img.shape[0],img.shape[1]), dtype=int)
 
     print 'Computing smoothness matrix...'
+    start_time = time.time()
     smoothness_matrix = compute_smoothness(img, debug=False)
+    end_time = time.time()
+
+    print 'Took %d seconds'%(end_time-start_time)
+
 
     global SOURCE
     global SINK
