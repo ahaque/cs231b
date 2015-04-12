@@ -7,6 +7,7 @@ import argparse
 import pymaxflow
 
 import time
+import sys
 
 # Global constants
 gamma = 50
@@ -15,6 +16,9 @@ beta = 1e-5 # TODO: optimize beta Boykov and Jolly 2001
 SOURCE = -1
 SINK = -2
 
+# If energy changes less than CONVERGENCE_CRITERIA percent from the last iteration
+# we will terminate
+CONVERGENCE_CRITERON = 0.01
 
 # get_args function
 # Intializes the arguments parser and reads in the arguments from the command
@@ -300,7 +304,6 @@ def main():
     img = load_image(*args.image_file)
     
     bbox = get_user_selection(img)
-    # bbox = [10, 10, img.shape[0]-10, img.shape[1]-10]
 
     print 'Initializing gmms'
     alpha, foreground_gmm, background_gmm = initialization(img, bbox)
@@ -313,12 +316,12 @@ def main():
 
     print 'Took %d seconds'%(end_time-start_time)
 
-
     global SOURCE
     global SINK
     
     FOREGROUND = 1
     BACKGROUND = 0
+    previous_energy = sys.float_info.max
     print 'Starting EM'
     for iteration in xrange(1,101):
         start_time = time.time()
@@ -349,19 +352,23 @@ def main():
         background_gmm.update_components(img, background_assignments)
 
         # 3. Estimate segmentation using min cut
-        print get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
-        
         # Update weights
-        # # TODO: move energy computation here and update edge weights
         print 'Creating image graph'
         graph = create_graph(img, smoothness_matrix)
         theta = (background_gmm, foreground_gmm)
+        total_energy = 0
         for h in xrange(img.shape[0]):
             for w in xrange(img.shape[1]):
                 index = h*img.shape[1] + w
-                # Source: Compute U for curr node
-                w1 = get_unary_energy(1, k, theta, img, (h, w)) # Foregound
-                w2 = get_unary_energy(0, k, theta, img, (h, w)) # Background
+                # If pixel is outside of bounding box, assign large unary energy
+                # See Jon's lecture notes on GrabCut, slide 11
+                if w < bbox[0] or w > bbox[2] or h < bbox[1] or h > bbox[3]:
+                    w1 = 1e9
+                    w2 = 1e9
+                else:
+                    # Source: Compute U for curr node
+                    w1 = get_unary_energy(1, k, theta, img, (h, w)) # Foregound
+                    w2 = get_unary_energy(0, k, theta, img, (h, w)) # Background
 
                 # Sink: Compute U for curr node
                 graph.add_tweights(index, w1, w2)
@@ -379,35 +386,35 @@ def main():
         graph.maxflow()
         partition = graph.what_segment_vectorized()
 
+        # Update alpha
+        for index in xrange(len(partition)):
+            h = index // img.shape[1]
+            w = index %  img.shape[1]
+            alpha[h,w] = partition[index]
+
         end_time = time.time()
 
         print 'Iteration %d time:'%iteration, end_time - start_time
 
-        if iteration % 1 == 0:
-            print 'Drawing graph'
+        # Terminate once the energy has converged
+        total_energy = get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
+        relative_change = abs(previous_energy - total_energy)/previous_energy
+        previous_energy = total_energy
+
+        if iteration % 10 == 0 or relative_change < CONVERGENCE_CRITERON:
             result = np.reshape(partition, (img.shape[0], img.shape[1]))*255
             result = result.astype(dtype=np.uint8)
             result = np.dstack((result, result, result))
             plt.imshow(result)
             plt.show()
 
+        if relative_change < CONVERGENCE_CRITERON:
+            "EM has converged. Terminating."
+            break
 
-        # pos = graph.new_vertex_property("vector<double>")
-        # for h in xrange(img.shape[0]):
-        #     for w in xrange(img.shape[1]):
-        #         index = h*img.shape[1] + w
-        #         pos[graph.vertex(index)] = np.array([h,w,0])
-                
-        # # _, pos = triangulation([for img.shape(0)])
-        # res.a = cap.a - res.a  # the actual flow
-        # graph_draw(graph, pos=pos, edge_pen_width=prop_to_size(cap, mi=3, ma=10, power=1),
-        #                 edge_text=res, vertex_fill_color=partition, vertex_text=graph.vertex_index,
-        #                 vertex_font_size=18, edge_font_size=18, fmt="png", output="example-min-st-cut.pdf")
-        
+        print "Relative Energy Change:", relative_change
+        print "-------------------------------------------------"
 
-        # for edge in edge_map:
-        #     (sh,sw,dh,dw) = edge
-        #     edge_weights[edge_map[edge]] = 
 
 # TODO:
 # gt : clear namespace
