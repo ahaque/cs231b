@@ -4,7 +4,7 @@ from gmm import GMM
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-import third_party.pymaxflow.pymaxflow as pymaxflow
+import pymaxflow
 
 import time
 
