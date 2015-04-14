@@ -4,7 +4,11 @@ from gmm import GMM
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-import third_party.pymaxflow.pymaxflow as pymaxflow
+
+try:
+    import third_party.pymaxflow.pymaxflow as pymaxflow
+except ImportError:
+    import pymaxflow
 
 import time
 import sys
@@ -342,11 +346,11 @@ def main():
     args = get_args()
     img = load_image(*args.image_file)
 
-    # bbox = get_user_selection(img)
-    # print 'Bounding box:',bbox
-    small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
-    big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
-    bbox = big_banana_bbox
+    bbox = get_user_selection(img)
+    print 'Bounding box:',bbox
+    # small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
+    # big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
+    # bbox = small_banana_bbox
 
     print 'Initializing gmms'
     tic()
