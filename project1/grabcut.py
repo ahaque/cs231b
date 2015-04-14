@@ -4,7 +4,7 @@ from gmm import GMM
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-import pymaxflow
+import third_party.pymaxflow.pymaxflow as pymaxflow
 
 import time
 import sys
@@ -16,9 +16,20 @@ beta = 1e-5 # TODO: optimize beta Boykov and Jolly 2001
 SOURCE = -1
 SINK = -2
 
+# tic-toc
+start_time = 0
+
 # If energy changes less than CONVERGENCE_CRITERIA percent from the last iteration
 # we will terminate
-CONVERGENCE_CRITERON = 0.01
+CONVERGENCE_CRITERON = 0.02
+
+def tic():
+    global start_time
+    start_time = time.time()
+def toc(task_label):
+    global start_time
+    print "%s took %0.4f s"%(task_label, time.time() - start_time)
+
 
 # get_args function
 # Intializes the arguments parser and reads in the arguments from the command
@@ -222,6 +233,34 @@ def get_energy(alpha, k, gmms, z, smoothness_matrix):
 
     return U + V
 
+def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
+    pi_base = gmms[alpha].weights
+    pi = pi_base[k].reshape(pixels.shape[0])
+
+    dets_base = np.array([gmms[alpha].gaussians[i].sigma_det for i in xrange(len(gmms[alpha].gaussians))])
+    dets = dets_base[k].reshape(pixels.shape[0])
+
+    means_base = np.array([gmms[alpha].gaussians[i].mean for i in xrange(len(gmms[alpha].gaussians))])
+    means = np.swapaxes(means_base[k], 1, 2)
+    means = means.reshape((means.shape[0:2]))
+
+    cov_base = np.array([gmms[alpha].gaussians[i].sigma_inv for i in xrange(len(gmms[alpha].gaussians))])
+    cov = np.swapaxes(cov_base[k], 1, 3)
+    cov = cov.reshape((cov.shape[0:3]))
+
+    term = pixels - means
+    middle_matrix = (np.multiply(term, cov[:, :, 0]) + np.multiply(term, cov[:, :, 1]) +np.multiply(term, cov[:, :, 2]))
+    log_prob = np.sum(np.multiply(middle_matrix, term), axis=1)
+
+    if debug:
+        print pi.shape
+        print dets.shape
+        print log_prob.shape
+
+    return -np.log(pi) \
+        + 0.5 * np.log(dets) \
+        + 0.5 * log_prob
+
 def get_unary_energy(alpha, k, gmms, z, pixel):
     h,w = pixel
     return -np.log(get_pi(alpha, k[h,w], gmms)) \
@@ -302,19 +341,23 @@ def compute_smoothness(z, debug=False):
 def main():
     args = get_args()
     img = load_image(*args.image_file)
-    
-    bbox = get_user_selection(img)
+
+    # bbox = get_user_selection(img)
+    # print 'Bounding box:',bbox
+    small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
+    big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
+    bbox = big_banana_bbox
 
     print 'Initializing gmms'
+    tic()
     alpha, foreground_gmm, background_gmm = initialization(img, bbox)
     k = np.zeros((img.shape[0],img.shape[1]), dtype=int)
+    toc('Initializing gmms')
 
     print 'Computing smoothness matrix...'
-    start_time = time.time()
+    tic()
     smoothness_matrix = compute_smoothness(img, debug=False)
-    end_time = time.time()
-
-    print 'Took %d seconds'%(end_time-start_time)
+    toc('Computing smoothness matrix')
 
     global SOURCE
     global SINK
@@ -324,14 +367,24 @@ def main():
     previous_energy = sys.float_info.max
     print 'Starting EM'
     for iteration in xrange(1,101):
-        start_time = time.time()
+        print 'Iteration %d'%iteration
         # 1. Assigning GMM components to pixels
-        for h in xrange(img.shape[0]):
-            for w in xrange(img.shape[1]):
-                if alpha[h,w] == 1:
-                    k[h,w] = foreground_gmm.get_component(img[h,w,:])
-                else:
-                    k[h,w] = background_gmm.get_component(img[h,w,:])
+        tic()
+        pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
+        foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
+        background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
+
+        k[alpha==1] = foreground_components[alpha==1]
+        k[alpha==0] = background_components[alpha==0]
+
+        # for h in xrange(img.shape[0]):
+        #     for w in xrange(img.shape[1]):
+        #         if alpha[h,w] == 1:
+        #             k[h,w] = foreground_gmm.get_component(img[h,w,:])
+        #         else:
+                    # k[h,w] = background_gmm.get_component(img[h,w,:])
+
+        toc('Assigning GMM components')
 
         # COLORS = [[255,0,0],[0,255,0], [0,0,255], [255,255,0], [255,0,255]]
         # res = np.zeros(img.shape, dtype=np.uint8)
@@ -342,6 +395,7 @@ def main():
         # plt.show()
 
         # 2. Learn GMM parameters
+        tic()
         foreground_assignments = -1*np.ones(k.shape)
         foreground_assignments[alpha==1] = k[alpha==1]
 
@@ -351,12 +405,23 @@ def main():
         foreground_gmm.update_components(img, foreground_assignments)
         background_gmm.update_components(img, background_assignments)
 
+        toc('Updating GMM parameters')
+
         # 3. Estimate segmentation using min cut
         # Update weights
-        print 'Creating image graph'
+        # Compute Unary weights
+
+        tic()
         graph = create_graph(img, smoothness_matrix)
         theta = (background_gmm, foreground_gmm)
         total_energy = 0
+
+        k_flattened =  k.reshape((img.shape[0]*img.shape[1], 1))
+        foreground_energies = get_unary_energy_vectorized(1, k_flattened, theta, pixels)
+        background_energies = get_unary_energy_vectorized(0, k_flattened, theta, pixels)
+
+        unary_total_time = 0.0
+        pairwise_time = 0.0
         for h in xrange(img.shape[0]):
             for w in xrange(img.shape[1]):
                 index = h*img.shape[1] + w
@@ -367,39 +432,51 @@ def main():
                     w2 = 1e9
                 else:
                     # Source: Compute U for curr node
-                    w1 = get_unary_energy(1, k, theta, img, (h, w)) # Foregound
-                    w2 = get_unary_energy(0, k, theta, img, (h, w)) # Background
+                    start_time = time.time()
+                    w1 = foreground_energies[index] # Foregound
+                    w2 = background_energies[index] # Background
+                    
+                    unary_total_time += time.time() - start_time
 
                 # Sink: Compute U for curr node
                 graph.add_tweights(index, w1, w2)
 
                 # Compute pairwise edge weights
+                start_time = time.time()
                 for (nh, nw) in smoothness_matrix[(h,w)].keys():
                     neighbor_index = nh * img.shape[1] + nw
                     edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
                     graph.add_edge(index, neighbor_index, edge_weight, edge_weight)
+                pairwise_time = time.time() - start_time
                     # print (h,w),'->',(nh,nw),':',edge_weights[edge_map[(h,w,nh,nw)]]
+        toc("Creating graph")
+        print "unary_total_time:", unary_total_time
+        print "pairwise_time:", pairwise_time
 
         # Graph has been created, run minCut
 
-        print 'Performing minCut'
+        tic()
         graph.maxflow()
         partition = graph.what_segment_vectorized()
+        toc("Min cut")
 
         # Update alpha
+        tic()
+        num_changed_pixels = 0
         for index in xrange(len(partition)):
             h = index // img.shape[1]
             w = index %  img.shape[1]
-            alpha[h,w] = partition[index]
-
-        end_time = time.time()
-
-        print 'Iteration %d time:'%iteration, end_time - start_time
+            if partition[index] != alpha[h,w]:
+                alpha[h,w] = partition[index]
+                num_changed_pixels += 1
+        toc("Updating alphas")
 
         # Terminate once the energy has converged
-        total_energy = get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
-        relative_change = abs(previous_energy - total_energy)/previous_energy
-        previous_energy = total_energy
+        # total_energy = get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
+        # relative_change = abs(previous_energy - total_energy)/previous_energy
+        # previous_energy = total_energy
+        # 
+        relative_change = num_changed_pixels/float(img.shape[0]*img.shape[1])
 
         if iteration % 10 == 0 or relative_change < CONVERGENCE_CRITERON:
             result = np.reshape(partition, (img.shape[0], img.shape[1]))*255
@@ -408,11 +485,14 @@ def main():
             plt.imshow(result)
             plt.show()
 
+        print "-------------------------------------------------"
+        print 'Relative change was %f'%relative_change
+
         if relative_change < CONVERGENCE_CRITERON:
             "EM has converged. Terminating."
             break
 
-        print "Relative Energy Change:", relative_change
+        # print "Relative Energy Change:", relative_change
         print "-------------------------------------------------"
 
 
@@ -422,5 +502,9 @@ def main():
 # Optimize node matrix creation with index computation while creating graph
 # Optimize pairwise edge weight computation
 
+# Exact bounding box from segmentation
+# Singular covariance matrix - Add 1e^-8*identity
+# Manage Empty clusters`
+# 
 if __name__ == '__main__':
     main()

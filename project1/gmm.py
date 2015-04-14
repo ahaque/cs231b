@@ -6,7 +6,7 @@ class GMM:
     def __init__(self, K):
         self.K = K
         self.gaussians = [Gaussian() for _ in xrange(self.K)]
-        self.weights = [1.0/K]*K
+        self.weights = np.array([1.0/K]*K)
 
     # X - Array of pixels, not necessarily an image
     def initialize_gmm(self, X, debug=False):
@@ -29,7 +29,12 @@ class GMM:
             print 'weights', self.weights
 
     def get_component(self, x):
-        return np.argmax([g.compute_probability(x) for g in self.gaussians])
+        components = np.zeros((x.shape[0], len(self.gaussians)))
+
+        for i,g in enumerate(self.gaussians):
+            components[:, i] = g.compute_probability(x)
+
+        return np.argmax(components, axis=1)
 
     def update_components(self, X, assignments):
         num_pixels = float(X.shape[0])
