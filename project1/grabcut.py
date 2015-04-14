@@ -15,8 +15,6 @@ import sys
 
 # Global constants
 gamma = 50
-beta = 1e-5 # TODO: optimize beta Boykov and Jolly 2001
-
 SOURCE = -1
 SINK = -2
 
@@ -347,7 +345,7 @@ def main():
     img = load_image(*args.image_file)
 
     bbox = get_user_selection(img)
-    print 'Bounding box:',bbox
+    # print 'Bounding box:',bbox
     # small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
     # big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
     # bbox = small_banana_bbox
@@ -390,6 +388,7 @@ def main():
 
         toc('Assigning GMM components')
 
+        # K-means visualization
         # COLORS = [[255,0,0],[0,255,0], [0,0,255], [255,255,0], [255,0,255]]
         # res = np.zeros(img.shape, dtype=np.uint8)
         # for h in xrange(img.shape[0]):
@@ -502,10 +501,9 @@ def main():
 
 # TODO:
 # gt : clear namespace
-# 4 neighbors
+# [DONE] 4 neighbors
 # Optimize node matrix creation with index computation while creating graph
-# Optimize pairwise edge weight computation
-
+# [DONE] Optimize pairwise edge weight computation
 # Exact bounding box from segmentation
 # Singular covariance matrix - Add 1e^-8*identity
 # Manage Empty clusters`
