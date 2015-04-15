@@ -43,8 +43,10 @@ def toc(task_label):
 def get_args():
     parser = argparse.ArgumentParser(
         description='Implementation of the GrabCut algorithm.')
-    parser.add_argument('image_file', 
+    parser.add_argument('-i','--image_file', 
         nargs=1, help='Input image name along with its relative path')
+    parser.add_argument('-b','--bbox', nargs=4, default=None,
+        help='Bounding box of the foreground object')
 
     return parser.parse_args()
 
@@ -320,7 +322,7 @@ def compute_smoothness(z, debug=False):
         for w in xrange(width):
             if (h,w) not in smoothness_matrix:
                 smoothness_matrix[(h,w)] = dict()
-            for hh,ww in EIGHT_NEIGHBORHOOD:
+            for hh,ww in FOUR_NEIGHBORHOOD:
                 nh, nw = h + hh, w + ww
                 if nw < 0 or nw >= width:
                     continue
@@ -342,16 +344,7 @@ def compute_smoothness(z, debug=False):
 
     return smoothness_matrix
 
-def main():
-    args = get_args()
-    img = load_image(*args.image_file)
-
-    bbox = get_user_selection(img)
-    print 'Bounding box:',bbox
-    # small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
-    # big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
-    # bbox = small_banana_bbox
-
+def grabcut(img, bbox, debug=False, drawImage=False):
     print 'Initializing gmms'
     tic()
     alpha, foreground_gmm, background_gmm = initialization(img, bbox)
@@ -370,7 +363,7 @@ def main():
     BACKGROUND = 0
     previous_energy = sys.float_info.max
     print 'Starting EM'
-    for iteration in xrange(1,101):
+    for iteration in xrange(1,11):
         print 'Iteration %d'%iteration
         # 1. Assigning GMM components to pixels
         tic()
@@ -498,6 +491,24 @@ def main():
 
         # print "Relative Energy Change:", relative_change
         print "-------------------------------------------------"
+
+    return alpha
+
+
+def main():
+    args = get_args()
+    img = load_image(*args.image_file)
+
+    if args.bbox:
+        bbox = [int(p) for p in args.bbox]
+    else:
+        bbox = get_user_selection(img)
+    print 'Bounding box:',bbox
+    # small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
+    # big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
+    # bbox = small_banana_bbox
+     
+    grabcut(img, bbox)
 
 
 # TODO:
