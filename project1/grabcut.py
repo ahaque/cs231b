@@ -369,6 +369,7 @@ def main():
     previous_energy = sys.float_info.max
     print 'Starting EM'
     for iteration in xrange(1,101):
+        print "-------------------------------------------------"
         print 'Iteration %d'%iteration
         # 1. Assigning GMM components to pixels
         tic()
@@ -488,7 +489,6 @@ def main():
             plt.imshow(result)
             plt.show()
 
-        print "-------------------------------------------------"
         print 'Relative change was %f'%relative_change
 
         if relative_change < CONVERGENCE_CRITERON:
@@ -496,7 +496,6 @@ def main():
             break
 
         # print "Relative Energy Change:", relative_change
-        print "-------------------------------------------------"
 
 
 # TODO:
