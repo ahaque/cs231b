@@ -15,8 +15,6 @@ import sys
 
 # Global constants
 gamma = 50
-beta = 1e-5 # TODO: optimize beta Boykov and Jolly 2001
-
 SOURCE = -1
 SINK = -2
 
@@ -363,7 +361,10 @@ def grabcut(img, bbox, debug=False, drawImage=False):
     BACKGROUND = 0
     previous_energy = sys.float_info.max
     print 'Starting EM'
+
     for iteration in xrange(1,11):
+        print "-------------------------------------------------"
+
         print 'Iteration %d'%iteration
         # 1. Assigning GMM components to pixels
         tic()
@@ -383,6 +384,7 @@ def grabcut(img, bbox, debug=False, drawImage=False):
 
         toc('Assigning GMM components')
 
+        # K-means visualization
         # COLORS = [[255,0,0],[0,255,0], [0,0,255], [255,255,0], [255,0,255]]
         # res = np.zeros(img.shape, dtype=np.uint8)
         # for h in xrange(img.shape[0]):
@@ -482,7 +484,6 @@ def grabcut(img, bbox, debug=False, drawImage=False):
             plt.imshow(result)
             plt.show()
 
-        print "-------------------------------------------------"
         print 'Relative change was %f'%relative_change
 
         if relative_change < CONVERGENCE_CRITERON:
@@ -490,7 +491,6 @@ def grabcut(img, bbox, debug=False, drawImage=False):
             break
 
         # print "Relative Energy Change:", relative_change
-        print "-------------------------------------------------"
 
     return alpha
 
@@ -510,13 +510,11 @@ def main():
      
     grabcut(img, bbox)
 
-
 # TODO:
 # gt : clear namespace
-# 4 neighbors
+# [DONE] 4 neighbors
 # Optimize node matrix creation with index computation while creating graph
-# Optimize pairwise edge weight computation
-
+# [DONE] Optimize pairwise edge weight computation
 # Exact bounding box from segmentation
 # Singular covariance matrix - Add 1e^-8*identity
 # Manage Empty clusters`
