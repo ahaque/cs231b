@@ -1,9 +1,9 @@
-
+import sys
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-import grabcut.grabcut
+import grabcut
 
 #################################################################
 # BEGIN REQUIRED INPUT PARAMETERS
@@ -45,15 +45,19 @@ def main():
 	all_accuracies = []
 	all_jaccards = []
 
+	if len(sys.argv) == 2:
+		image_names = [sys.argv[1]]
+
 	# Loop through all images
 	for image_name in image_names:
 		bbox_file = open(BBOX_DIR + image_name + BBOX_EXT, "r")
 		bbox = map(int, bbox_file.readlines()[0].strip().split(" "))
+		print bbox
 
 		image = plt.imread(DATA_DIR + image_name + DATA_EXT)
 
 		# Call GrabCut. Pass the image and bounding box.
-		segmentation = grabcut(image, bbox)
+		segmentation = grabcut.grabcut(image, bbox)
 		#segmentation = plt.imread(SEG_DIR + image_name + SEG_EXT)
 
 		# Compare the resulting segmentation to the GT segmentation
@@ -66,8 +70,8 @@ def main():
 		jaccard = computeJaccard(segmentation, ground_truth)
 
 		all_accuracies.append(accuracy)
-		all_jaccards(accuracy)
-
+		all_jaccards.append(jaccard)
+		
 		# Write to log file
 		print image_name, accuracy, jaccard
 
