@@ -5,7 +5,7 @@ class Gaussian:
     # sigma: Covariance matrix 
     def __init__(self, mean=np.zeros((3,1)), sigma=np.eye(3)):
         self.mean = np.array(mean)
-        self.sigma = np.array(sigma)
+        self.sigma = np.array(sigma) + np.eye(3)*1e-8
         
         self.sigma_det = np.linalg.det(sigma)
         self.sigma_inv = np.linalg.inv(sigma)
@@ -36,7 +36,7 @@ class Gaussian:
 
     def update_parameters(self, data):
         self.mean = np.mean(data, axis=0)
-        self.sigma = np.cov(data, rowvar=0)
+        self.sigma = np.cov(data, rowvar=0) + np.eye(self.k)*1e-8
 
         self.sigma_det = np.linalg.det(self.sigma)
         self.sigma_inv = np.linalg.inv(self.sigma)

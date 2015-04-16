@@ -10,7 +10,7 @@ class GMM:
 
     # X - Array of pixels, not necessarily an image
     def initialize_gmm(self, X, debug=False):
-        clusterer = KMeans(n_clusters=self.K)
+        clusterer = KMeans(n_clusters=self.K, random_state=5)
         clusters = clusterer.fit_predict(X)
 
         num_pixels = float(X.shape[0])
@@ -36,12 +36,21 @@ class GMM:
 
         return np.argmax(components, axis=1)
 
+    # X -> -1, 1 .. K -> -1 = not current class
     def update_components(self, X, assignments):
-        num_pixels = float(X.shape[0])
+        num_pixels = float(np.sum(assignments != -1))
 
+        # gaussians = []
+        # weights = []
         for i, distribution in enumerate(self.gaussians):
-            distribution.update_parameters(X[assignments==i])
-            self.weights[i] = np.sum(assignments==i)/num_pixels
+            if X[assignments==i].shape[0] != 0:
+                distribution.update_parameters(X[assignments==i])
+                self.weights[i] = (np.sum(assignments==i)/num_pixels)
+            else:
+                distribution.mean = [-1e9,-1e9,-1e9]
+        # self.gaussians = gaussians
+        # self.weights = np.array(weights)
+        # self.K = len(gaussians)
 
     def compute_probability(self, x):
         return np.dot(self.weights, [g.compute_probability(x) for g in self.gaussians])

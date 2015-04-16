@@ -164,9 +164,6 @@ def initialization(img, bbox, debug=False):
             if (w > xmin) and (w < xmax) and (h > ymin) and (h < ymax):
                 # Foreground
                 alpha[h,w] = 1
-            else:
-                # Background
-                alpha[h,w] = 0
 
     foreground_gmm = GMM(5)
     background_gmm = GMM(5)
@@ -185,7 +182,7 @@ def initialization(img, bbox, debug=False):
     return alpha, foreground_gmm, background_gmm
 
 # Currently creates a meaningless graph
-def create_graph(img, neighbor_list):
+def create_graph(img):
     num_neighbors = 8
 
     num_nodes = img.shape[0]*img.shape[1] + 2
@@ -238,6 +235,7 @@ def get_energy(alpha, k, gmms, z, smoothness_matrix):
     return U + V
 
 def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
+    # print k
     pi_base = gmms[alpha].weights
     pi = pi_base[k].reshape(pixels.shape[0])
 
@@ -275,9 +273,9 @@ def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
     (h,w) = pixel_1
     (nh,nw) = pixel_2
     V = 0
-    if alpha[h,w] != alpha[nh,nw]:
-        # print 'Pairwise',(h,w), (nh,nw)
-        V = smoothness_matrix[(h,w)][(nh, nw)]
+    # if alpha[h,w] != alpha[nh,nw]:
+        # print 'Pairwise',(h,w), (nh,nw), V
+    V = smoothness_matrix[(h,w)][(nh, nw)]
 
     return gamma *V
 
@@ -301,7 +299,25 @@ def compute_beta(z, debug=False):
     beta = (2*(accumulator/num_comparisons))**-1
 
     return beta
-            
+
+def compute_beta_vectorized(z, debug=False):
+    accumulator = 0
+    m = z.shape[0]
+    n = z.shape[1]
+
+    vert_shifted = z - np.roll(z, 1, axis=0)
+    temp = np.sum(np.multiply(vert_shifted, vert_shifted), axis=2)
+    accumulator = np.sum(temp[1:,:])
+
+    horiz_shifted = z - np.roll(z, 1, axis=1)
+    temp = np.sum(np.multiply(horiz_shifted, horiz_shifted), axis=2)
+    accumulator += np.sum(temp[:,1:])
+
+    num_comparisons = float(2*(m*n) - m - n)
+
+    beta = (2*(accumulator/num_comparisons))**-1
+
+    return beta      
 
 def compute_smoothness(z, debug=False):
     EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
@@ -311,8 +327,9 @@ def compute_smoothness(z, debug=False):
     global beta
     smoothness_matrix = dict()
 
-    beta = compute_beta(z)
-    print 'beta',beta
+    beta = compute_beta_vectorized(z)
+    if debug:
+        print 'beta',beta
 
     for h in xrange(height):
         if debug:
@@ -320,7 +337,7 @@ def compute_smoothness(z, debug=False):
         for w in xrange(width):
             if (h,w) not in smoothness_matrix:
                 smoothness_matrix[(h,w)] = dict()
-            for hh,ww in FOUR_NEIGHBORHOOD:
+            for hh,ww in EIGHT_NEIGHBORHOOD:
                 nh, nw = h + hh, w + ww
                 if nw < 0 or nw >= width:
                     continue
@@ -334,7 +351,7 @@ def compute_smoothness(z, debug=False):
                     continue
 
                 smoothness_matrix[(h,w)][(nh, nw)] = \
-                    np.exp(-1 * beta * np.linalg.norm(z[h,w,:] - z[nh,nw,:]))
+                    np.exp(-1 * beta * (np.linalg.norm(z[h,w,:] - z[nh,nw,:])**2))
                 smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
 
                 if debug:
@@ -342,17 +359,90 @@ def compute_smoothness(z, debug=False):
 
     return smoothness_matrix
 
+def compute_smoothness_vectorized(z, debug=False):
+    EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
+    FOUR_NEIGHBORHOOD = [(0,-1,0), (1,1,0), (2,0,-1), (3,0,1)]
+
+    height, width, _ = z.shape
+    global beta
+    smoothness_matrix = dict()
+
+    beta = compute_beta_vectorized(z)
+    if debug:
+        print 'beta',beta
+
+    vert_shifted_down = z - np.roll(z, 1, axis=0) # prev guy - start access at 1
+    vert_shifted_up = z - np.roll(z, -1, axis=0) # next guy - end access before 1
+
+    horiz_shifted_left = z - np.roll(z, 1, axis=1)
+    horiz_shifted_right = z - np.roll(z, -1, axis=1)
+
+    energies = []
+    # (i,j) gives norm(z[i,j] - z[i-1,j])
+    energies.append(np.exp(-1 * beta * np.sum(np.multiply(vert_shifted_down, vert_shifted_down), axis=2)))
+    # (i,j) gives norm(z[i,j] - z[i+1,j])
+    energies.append(np.exp(-1 * beta * np.sum(np.multiply(vert_shifted_up, vert_shifted_up), axis=2)))
+    # (i,j) gives norm(z[i,j] - z[i,j-1])
+    energies.append(np.exp(-1 * beta * np.sum(np.multiply(horiz_shifted_left, horiz_shifted_left), axis=2)))
+    # (i,j) gives norm(z[i,j] - z[i,j+1])
+    energies.append(np.exp(-1 * beta * np.sum(np.multiply(horiz_shifted_right, horiz_shifted_right), axis=2)))
+    #print temp[18, 3], (np.linalg.norm(z[18,3,:] - z[18,4,:])**2)
+
+    for h in xrange(height):
+        for w in xrange(width):
+            if (h,w) not in smoothness_matrix:
+                smoothness_matrix[(h,w)] = dict()
+            for i,hh,ww in FOUR_NEIGHBORHOOD:
+                nh, nw = h + hh, w + ww
+                if nw < 0 or nw >= width:
+                    continue
+                if nh < 0 or nh >= height:
+                    continue
+
+                if (nh,nw) not in smoothness_matrix:
+                    smoothness_matrix[(nh,nw)] = dict()
+
+                if (h,w) in smoothness_matrix[(nh,nw)]:
+                    continue
+
+                smoothness_matrix[(h,w)][(nh, nw)] = energies[i][h,w]
+                smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
+
+                if debug:
+                    print (h,w),'->',(nh,nw),":",z[h,w,:], z[nh,nw,:], smoothness_matrix[(h,w)][(nh, nw)]
+
+    return smoothness_matrix
+
+
 def grabcut(img, bbox, debug=False, drawImage=False):
-    print 'Initializing gmms'
-    tic()
+    if debug: 
+        print 'Initializing gmms'
+        tic()
     alpha, foreground_gmm, background_gmm = initialization(img, bbox)
     k = np.zeros((img.shape[0],img.shape[1]), dtype=int)
-    toc('Initializing gmms')
+    if debug:
+        toc('Initializing gmms')
 
-    print 'Computing smoothness matrix...'
-    tic()
-    smoothness_matrix = compute_smoothness(img, debug=False)
-    toc('Computing smoothness matrix')
+    if debug:
+        print 'Computing smoothness matrix...'
+        tic()
+    # tic()
+    # s1 = compute_smoothness(img, debug=False)
+    # toc('Computing smoothness matrix normally')
+    # tic()
+    smoothness_matrix = compute_smoothness_vectorized(img, debug=False)
+    # toc('Computing smoothness matrix vectorally')
+
+    # for (h,w) in s1:
+    #     if len(s1[(h,w)]) != len(smoothness_matrix[(h,w)]):
+    #         print 'PROBLEM lens not equal at',(h,w)
+    #     for (nh,nw) in s1[(h,w)]:
+    #         if abs(s1[(h,w)][(nh,nw)] - smoothness_matrix[(h,w)][(nh,nw)]) > 1e-12:
+    #             print 'PROBLEM at',(h,w),(nh,nw),'->',s1[(h,w)][(nh,nw)],'!=',smoothness_matrix[(h,w)][(nh,nw)]
+    # print 'Finished check'
+    # print smoothness_matrix
+    if debug:
+        toc('Computing smoothness matrix')
 
     global SOURCE
     global SINK
@@ -360,14 +450,17 @@ def grabcut(img, bbox, debug=False, drawImage=False):
     FOREGROUND = 1
     BACKGROUND = 0
     previous_energy = sys.float_info.max
-    print 'Starting EM'
+    if debug:
+        print 'Starting EM'
 
     for iteration in xrange(1,11):
-        print "-------------------------------------------------"
-
-        print 'Iteration %d'%iteration
+        if debug:
+            print "-------------------------------------------------"
+            print 'Iteration %d'%iteration
+            print np.sum(alpha)/float(img.shape[0]*img.shape[1])
         # 1. Assigning GMM components to pixels
-        tic()
+        if debug:
+            tic()
         pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
         foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
         background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
@@ -381,10 +474,10 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         #             k[h,w] = foreground_gmm.get_component(img[h,w,:])
         #         else:
                     # k[h,w] = background_gmm.get_component(img[h,w,:])
+        if debug:
+            toc('Assigning GMM components')
 
-        toc('Assigning GMM components')
-
-        # K-means visualization
+        # # K-means visualization
         # COLORS = [[255,0,0],[0,255,0], [0,0,255], [255,255,0], [255,0,255]]
         # res = np.zeros(img.shape, dtype=np.uint8)
         # for h in xrange(img.shape[0]):
@@ -394,24 +487,48 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         # plt.show()
 
         # 2. Learn GMM parameters
-        tic()
+        if debug:
+            tic()
         foreground_assignments = -1*np.ones(k.shape)
         foreground_assignments[alpha==1] = k[alpha==1]
 
-        background_assignments = -1*np.zeros(k.shape)
+        background_assignments = -1*np.ones(k.shape)
         background_assignments[alpha==0] = k[alpha==0]
+
+        # print k.shape, foreground_assignments.shape
+        # print np.sum(foreground_assignments != -1), np.sum(background_assignments != -1)
+        # print img.shape[0]*img.shape[1]
+
+        # print k[alpha==0]
+        # return
+        # 
+        # print 'beforeeeee',len(foreground_gmm.gaussians)
+        # print 'beforeeeee',len(background_gmm.gaussians)
 
         foreground_gmm.update_components(img, foreground_assignments)
         background_gmm.update_components(img, background_assignments)
+        if debug:
+            toc('Updating GMM parameters')
 
-        toc('Updating GMM parameters')
+        if debug:
+            tic()
+        foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
+        background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
+
+        k[alpha==1] = foreground_components[alpha==1]
+        k[alpha==0] = background_components[alpha==0]
+        if debug:
+            toc('Assigning GMM components again')
+
+        # print 'aftaaaaaaaa',len(foreground_gmm.gaussians)
+        # print 'aftaaaaaaaa',len(background_gmm.gaussians)
 
         # 3. Estimate segmentation using min cut
         # Update weights
         # Compute Unary weights
-
-        tic()
-        graph = create_graph(img, smoothness_matrix)
+        if debug:
+            tic()
+        graph = create_graph(img)
         theta = (background_gmm, foreground_gmm)
         total_energy = 0
 
@@ -419,8 +536,10 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         foreground_energies = get_unary_energy_vectorized(1, k_flattened, theta, pixels)
         background_energies = get_unary_energy_vectorized(0, k_flattened, theta, pixels)
 
+        pairwise_energies = np.zeros(img.shape[0:2], dtype=float)
         unary_total_time = 0.0
         pairwise_time = 0.0
+        # done_with = set()
         for h in xrange(img.shape[0]):
             for w in xrange(img.shape[1]):
                 index = h*img.shape[1] + w
@@ -442,33 +561,65 @@ def grabcut(img, bbox, debug=False, drawImage=False):
 
                 # Compute pairwise edge weights
                 start_time = time.time()
+                pairwise_energy = 0.0
                 for (nh, nw) in smoothness_matrix[(h,w)].keys():
                     neighbor_index = nh * img.shape[1] + nw
+                    # if (index, neighbor_index) in done_with:
+                    #     continue
                     edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
-                    graph.add_edge(index, neighbor_index, edge_weight, edge_weight)
+                    graph.add_edge(index, neighbor_index, edge_weight,edge_weight)
+                    # done_with.add((index, neighbor_index))
+                    # done_with.add((neighbor_index, index))
+# 
+                    pairwise_energy += edge_weight
+                #if debug:
+                    #print (h,w), w1, w2, pairwise_energy
+                pairwise_energies[h,w] = pairwise_energy
                 pairwise_time = time.time() - start_time
                     # print (h,w),'->',(nh,nw),':',edge_weights[edge_map[(h,w,nh,nw)]]
-        toc("Creating graph")
-        print "unary_total_time:", unary_total_time
-        print "pairwise_time:", pairwise_time
+                    # 
+        # import matplotlib.cm as cm
+        # plt.subplot(2, 2, 1)
+        # plt.imshow(np.floor(foreground_energies/np.max(foreground_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
+        # plt.subplot(2, 2, 2)
+        # plt.imshow(np.floor(background_energies/np.max(background_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
+        # plt.subplot(2, 2, 3)
+        # plt.imshow(np.floor(pairwise_energies/np.max(pairwise_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
+        # plt.subplot(2, 2, 4)
+        # plt.imshow(np.floor(pairwise_energies/np.max(pairwise_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
+        # plt.show()
+
+
+        if debug:
+            toc("Creating graph")
+            print "unary_total_time:", unary_total_time
+            print "pairwise_time:", pairwise_time
 
         # Graph has been created, run minCut
-
-        tic()
+        if debug:
+            tic()
         graph.maxflow()
         partition = graph.what_segment_vectorized()
-        toc("Min cut")
+        if debug:
+            toc("Min cut")
 
         # Update alpha
-        tic()
-        num_changed_pixels = 0
-        for index in xrange(len(partition)):
-            h = index // img.shape[1]
-            w = index %  img.shape[1]
-            if partition[index] != alpha[h,w]:
-                alpha[h,w] = partition[index]
-                num_changed_pixels += 1
-        toc("Updating alphas")
+        if debug:
+            tic()
+        # num_changed_pixels = 0
+        # for index in xrange(len(partition)):
+        #     h = index // img.shape[1]
+        #     w = index %  img.shape[1]
+        #     if partition[index] != alpha[h,w]:
+        #         alpha[h,w] = partition[index]
+        #         num_changed_pixels += 1
+        partition = partition.reshape(alpha.shape)
+        # n = num_changed_pixels
+        num_changed_pixels = np.sum(np.abs(partition-alpha))
+        alpha = partition
+
+        if debug:
+            toc("Updating alphas")
 
         # Terminate once the energy has converged
         # total_energy = get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
@@ -477,18 +628,20 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         # 
         relative_change = num_changed_pixels/float(img.shape[0]*img.shape[1])
 
-        if iteration % 10 == 0 or relative_change < CONVERGENCE_CRITERON:
-            result = np.reshape(partition, (img.shape[0], img.shape[1]))*255
-            result = result.astype(dtype=np.uint8)
-            result = np.dstack((result, result, result))
-            plt.imshow(result)
-            plt.show()
-
-        print 'Relative change was %f'%relative_change
+        if drawImage:
+            if iteration % 10 == 0:# or relative_change < CONVERGENCE_CRITERON:
+                result = np.reshape(partition, (img.shape[0], img.shape[1]))*255
+                result = result.astype(dtype=np.uint8)
+                result = np.dstack((result, result, result))
+                plt.imshow(result)
+                plt.show()
+        if debug:
+            print 'Relative change was %f'%relative_change
 
         if relative_change < CONVERGENCE_CRITERON:
-            "EM has converged. Terminating."
-            break
+            if debug:
+                print "EM has converged. Terminating."
+            # break
 
         # print "Relative Energy Change:", relative_change
 
@@ -504,11 +657,17 @@ def main():
     else:
         bbox = get_user_selection(img)
     print 'Bounding box:',bbox
+
+    # plt.imshow(img)
+    # currentAxis = plt.gca()
+    # currentAxis.add_patch(Rectangle((bbox[0], bbox[1]), bbox[2]-bbox[0], bbox[3]-bbox[1], facecolor="grey"))
+    # plt.show()
+
     # small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
-    # big_banana_bbox = [25.306451612903231, 26.596774193548299, 605.95161290322574, 439.49999999999994]
+    # big_banana_bbox = [27.887096774193537, 33.048387096774036, 604.66129032258061, 451.11290322580641]
     # bbox = small_banana_bbox
      
-    grabcut(img, bbox)
+    grabcut(img, bbox, debug=True, drawImage=True)
 
 # TODO:
 # gt : clear namespace
