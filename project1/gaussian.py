@@ -22,7 +22,7 @@ class Gaussian:
             print 'diff',(x - self.mean)
             print 'diff',(x - self.mean).T
             print 'inv',self.sigma_inv
-            print 'mult',np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean))
+            # print 'mult',np.dot(np.dot((x - self.mean).T, self.sigma_inv), (x - self.mean))
             print ''
         mean = np.tile(self.mean, (x.shape[0], 1))
         middle_matrix = np.dot((x - mean), self.sigma_inv)
@@ -31,7 +31,8 @@ class Gaussian:
             print 'mean :', mean.shape
             print 'middle_matrix :',middle_matrix.shape
             print 'last_vector :',(x-mean).shape
-
+            print 'res',np.multiply((x-mean), middle_matrix).shape
+            
         return self.term1 * np.exp(-0.5 * np.sum(np.multiply((x-mean), middle_matrix),axis=1))
 
     def update_parameters(self, data):

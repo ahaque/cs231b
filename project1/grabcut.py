@@ -251,8 +251,22 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
     cov = cov.reshape((cov.shape[0:3]))
 
     term = pixels - means
-    middle_matrix = (np.multiply(term, cov[:, :, 0]) + np.multiply(term, cov[:, :, 1]) +np.multiply(term, cov[:, :, 2]))
+    # middle_matrix = (np.multiply(term, cov[:, :, 0]) + np.multiply(term, cov[:, :, 1]) +np.multiply(term, cov[:, :, 2]))
+    middle_matrix = np.array([np.sum(np.multiply(term, cov[:, :, 0]),axis=1),
+                              np.sum(np.multiply(term, cov[:, :, 1]),axis=1),
+                              np.sum(np.multiply(term, cov[:, :, 2]),axis=1)]).T
+    # print middle_matrix.shape
+
     log_prob = np.sum(np.multiply(middle_matrix, term), axis=1)
+
+    # print 0.5*log_prob[5], get_log_prob(alpha, k[5], gmms, pixels[5])
+    # print 0.5*log_prob[1], get_log_prob(alpha, k[1], gmms, pixels[1])
+
+    # print 0.5*log_prob[500], get_log_prob(alpha, k[500], gmms, pixels[500])
+
+    # print 0.5*log_prob[20], get_log_prob(alpha, k[20], gmms, pixels[20])
+
+
 
     if debug:
         print pi.shape
@@ -273,9 +287,9 @@ def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
     (h,w) = pixel_1
     (nh,nw) = pixel_2
     V = 0
-    # if alpha[h,w] != alpha[nh,nw]:
+    if alpha[h,w] != alpha[nh,nw]:
         # print 'Pairwise',(h,w), (nh,nw), V
-    V = smoothness_matrix[(h,w)][(nh, nw)]
+        V = smoothness_matrix[(h,w)][(nh, nw)]
 
     return gamma *V
 
@@ -520,6 +534,9 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         if debug:
             toc('Assigning GMM components again')
 
+        # print 'Foreground',[np.sum(foreground_components==i) for i in xrange(5)]
+        # print 'Background',[np.sum(background_components==i) for i in xrange(5)]
+
         # print 'aftaaaaaaaa',len(foreground_gmm.gaussians)
         # print 'aftaaaaaaaa',len(background_gmm.gaussians)
 
@@ -553,6 +570,10 @@ def grabcut(img, bbox, debug=False, drawImage=False):
                     start_time = time.time()
                     w1 = foreground_energies[index] # Foregound
                     w2 = background_energies[index] # Background
+                    # print w1,get_unary_energy(1, k, theta, img, (h,w))
+                    # print w2,get_unary_energy(0, k, theta, img, (h,w))
+                    # print ''
+
                     
                     unary_total_time += time.time() - start_time
 
@@ -573,7 +594,8 @@ def grabcut(img, bbox, debug=False, drawImage=False):
 # 
                     pairwise_energy += edge_weight
                 #if debug:
-                    #print (h,w), w1, w2, pairwise_energy
+                # if w1 < 1e8: 
+                #     print (h,w), w1, w2, pairwise_energy
                 pairwise_energies[h,w] = pairwise_energy
                 pairwise_time = time.time() - start_time
                     # print (h,w),'->',(nh,nw),':',edge_weights[edge_map[(h,w,nh,nw)]]

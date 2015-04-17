@@ -32,7 +32,7 @@ class GMM:
         components = np.zeros((x.shape[0], len(self.gaussians)))
 
         for i,g in enumerate(self.gaussians):
-            components[:, i] = g.compute_probability(x)
+            components[:, i] = self.weights[i]*g.compute_probability(x)
 
         return np.argmax(components, axis=1)
 
@@ -48,6 +48,7 @@ class GMM:
                 self.weights[i] = (np.sum(assignments==i)/num_pixels)
             else:
                 distribution.mean = [-1e9,-1e9,-1e9]
+                self.weights[i] = 0
         # self.gaussians = gaussians
         # self.weights = np.array(weights)
         # self.K = len(gaussians)
