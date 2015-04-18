@@ -1,5 +1,4 @@
 from matplotlib.patches import Rectangle
-from graph_tool.all import *
 from gmm import GMM
 import matplotlib.pyplot as plt
 import numpy as np
