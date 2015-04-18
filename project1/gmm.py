@@ -10,7 +10,7 @@ class GMM:
 
     # X - Array of pixels, not necessarily an image
     def initialize_gmm(self, X, debug=False):
-        clusterer = KMeans(n_clusters=self.K, random_state=5)
+        clusterer = KMeans(n_clusters=self.K, random_state=None)
         clusters = clusterer.fit_predict(X)
 
         num_pixels = float(X.shape[0])

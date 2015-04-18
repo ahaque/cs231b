@@ -168,6 +168,7 @@ def initialization(img, bbox, debug=False):
     foreground_gmm = GMM(5)
     background_gmm = GMM(5)
 
+    # print img.shape[0]*img.shape[1], np.sum(alpha==1)+np.sum(alpha==0)
     foreground_gmm.initialize_gmm(img[alpha==1,:])
     background_gmm.initialize_gmm(img[alpha==0,:])
 
@@ -240,6 +241,7 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
     pi = pi_base[k].reshape(pixels.shape[0])
 
     dets_base = np.array([gmms[alpha].gaussians[i].sigma_det for i in xrange(len(gmms[alpha].gaussians))])
+    #dets = np.power(np.sqrt(dets_base[k].reshape(pixels.shape[0])), -1)
     dets = dets_base[k].reshape(pixels.shape[0])
 
     means_base = np.array([gmms[alpha].gaussians[i].mean for i in xrange(len(gmms[alpha].gaussians))])
@@ -479,6 +481,7 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
         background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
 
+        k = np.ones((img.shape[0],img.shape[1]), dtype=int)*-1
         k[alpha==1] = foreground_components[alpha==1]
         k[alpha==0] = background_components[alpha==0]
 
@@ -509,6 +512,12 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         background_assignments = -1*np.ones(k.shape)
         background_assignments[alpha==0] = k[alpha==0]
 
+        # print 'Foreground:',[np.sum(foreground_assignments==q) for q in [-1,0,1,2,3,4]]
+        # print 'Background:',[np.sum(background_assignments==q) for q in [-1,0,1,2,3,4]]
+
+        # WHY ARE WE REASSINGING - WE JUST CREATED the gaussians from a set of data, the
+        # gaussian should fit it lol
+        # 
         # print k.shape, foreground_assignments.shape
         # print np.sum(foreground_assignments != -1), np.sum(background_assignments != -1)
         # print img.shape[0]*img.shape[1]
@@ -518,21 +527,33 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         # 
         # print 'beforeeeee',len(foreground_gmm.gaussians)
         # print 'beforeeeee',len(background_gmm.gaussians)
+        # foreground_components[alpha==0] = -1
+        # background_components[alpha==1] = -1
+
+        # print ''
+        # print ''
+        # print np.sum(foreground_components==-1)+np.sum(background_components==-1), img.shape[0]*img.shape[1]
+        # print np.sum(foreground_assignments==foreground_components), np.sum(background_assignments==background_components)
+        # print ''
+        # print ''
 
         foreground_gmm.update_components(img, foreground_assignments)
         background_gmm.update_components(img, background_assignments)
+
+        # print 'Foreground means:',[foreground_gmm.gaussians[q].mean for q in [0,1,2,3,4]]
+        # print 'Background means:',[background_gmm.gaussians[q].mean for q in [0,1,2,3,4]]
         if debug:
             toc('Updating GMM parameters')
 
-        if debug:
-            tic()
-        foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
-        background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
+        # if debug:
+        #     tic()
+        # foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
+        # background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
 
-        k[alpha==1] = foreground_components[alpha==1]
-        k[alpha==0] = background_components[alpha==0]
-        if debug:
-            toc('Assigning GMM components again')
+        # k[alpha==1] = foreground_components[alpha==1]
+        # k[alpha==0] = background_components[alpha==0]
+        # if debug:
+        #     toc('Assigning GMM components again')
 
         # print 'Foreground',[np.sum(foreground_components==i) for i in xrange(5)]
         # print 'Background',[np.sum(background_components==i) for i in xrange(5)]
@@ -550,21 +571,36 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         total_energy = 0
 
         k_flattened =  k.reshape((img.shape[0]*img.shape[1], 1))
-        foreground_energies = get_unary_energy_vectorized(1, k_flattened, theta, pixels)
-        background_energies = get_unary_energy_vectorized(0, k_flattened, theta, pixels)
+        # for i in range(100):
+        #     print k[i,20], k_flattened[i*img.shape[1]+20]
+        # return
+        # sample_k = np.ones((img.shape[0]*img.shape[1], 1), dtype=int)
+        # foreground_energies = get_unary_energy_vectorized(1, sample_k*0, theta, pixels) + \
+        #                       get_unary_energy_vectorized(1, sample_k*1, theta, pixels) + \
+        #                       get_unary_energy_vectorized(1, sample_k*2, theta, pixels) + \
+        #                       get_unary_energy_vectorized(1, sample_k*3, theta, pixels) + \
+        #                       get_unary_energy_vectorized(1, sample_k*4, theta, pixels)
+        # background_energies = get_unary_energy_vectorized(0, sample_k*0, theta, pixels) + \
+        #                       get_unary_energy_vectorized(0, sample_k*1, theta, pixels) + \
+        #                       get_unary_energy_vectorized(0, sample_k*2, theta, pixels) + \
+        #                       get_unary_energy_vectorized(0, sample_k*3, theta, pixels) + \
+        #                       get_unary_energy_vectorized(0, sample_k*4, theta, pixels)
+        
+        foreground_energies = get_unary_energy_vectorized(1, foreground_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
+        background_energies = get_unary_energy_vectorized(0, background_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
 
         pairwise_energies = np.zeros(img.shape[0:2], dtype=float)
-        unary_total_time = 0.0
         pairwise_time = 0.0
-        # done_with = set()
+        done_with = set()
         for h in xrange(img.shape[0]):
             for w in xrange(img.shape[1]):
                 index = h*img.shape[1] + w
+                #index = w*img.shape[1] + h
                 # If pixel is outside of bounding box, assign large unary energy
                 # See Jon's lecture notes on GrabCut, slide 11
-                if w < bbox[0] or w > bbox[2] or h < bbox[1] or h > bbox[3]:
+                if w <= bbox[0] or w >= bbox[2] or h <= bbox[1] or h >= bbox[3]:
                     w1 = 1e9
-                    w2 = 1e9
+                    w2 = 0
                 else:
                     # Source: Compute U for curr node
                     start_time = time.time()
@@ -574,9 +610,6 @@ def grabcut(img, bbox, debug=False, drawImage=False):
                     # print w2,get_unary_energy(0, k, theta, img, (h,w))
                     # print ''
 
-                    
-                    unary_total_time += time.time() - start_time
-
                 # Sink: Compute U for curr node
                 graph.add_tweights(index, w1, w2)
 
@@ -585,17 +618,19 @@ def grabcut(img, bbox, debug=False, drawImage=False):
                 pairwise_energy = 0.0
                 for (nh, nw) in smoothness_matrix[(h,w)].keys():
                     neighbor_index = nh * img.shape[1] + nw
-                    # if (index, neighbor_index) in done_with:
-                    #     continue
+                    # neighbor_index = nw * img.shape[1] + nh
+                    # print (h,w),(nh, nw), index, neighbor_index, img.shape
+                    if (index, neighbor_index) in done_with:
+                        continue
                     edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
                     graph.add_edge(index, neighbor_index, edge_weight,edge_weight)
-                    # done_with.add((index, neighbor_index))
-                    # done_with.add((neighbor_index, index))
+                    done_with.add((index, neighbor_index))
+                    done_with.add((neighbor_index, index))
 # 
                     pairwise_energy += edge_weight
                 #if debug:
-                # if w1 < 1e8: 
-                #     print (h,w), w1, w2, pairwise_energy
+                if w1 < 1e8 and iteration == 50: 
+                    print (h,w), w1, w2, pairwise_energy
                 pairwise_energies[h,w] = pairwise_energy
                 pairwise_time = time.time() - start_time
                     # print (h,w),'->',(nh,nw),':',edge_weights[edge_map[(h,w,nh,nw)]]
@@ -614,7 +649,6 @@ def grabcut(img, bbox, debug=False, drawImage=False):
 
         if debug:
             toc("Creating graph")
-            print "unary_total_time:", unary_total_time
             print "pairwise_time:", pairwise_time
 
         # Graph has been created, run minCut
@@ -622,6 +656,7 @@ def grabcut(img, bbox, debug=False, drawImage=False):
             tic()
         graph.maxflow()
         partition = graph.what_segment_vectorized()
+
         if debug:
             toc("Min cut")
 
