@@ -153,7 +153,7 @@ def get_user_selection(img):
     # Return the selected rectangle
     return selector.rectangle
 
-def initialization(img, bbox, debug=False):
+def initialization(img, bbox, num_components=5, debug=False):
     xmin, ymin, xmax, ymax = bbox
     height, width, _ = img.shape
     alpha = np.zeros((height, width), dtype=np.int8)
@@ -164,14 +164,19 @@ def initialization(img, bbox, debug=False):
                 # Foreground
                 alpha[h,w] = 1
 
-    foreground_gmm = GMM(5)
-    background_gmm = GMM(5)
+    foreground_gmm = GMM(num_components)
+    background_gmm = GMM(num_components)
 
     # print img.shape[0]*img.shape[1], np.sum(alpha==1)+np.sum(alpha==0)
-    foreground_gmm.initialize_gmm(img[alpha==1,:])
-    background_gmm.initialize_gmm(img[alpha==0,:])
+    fg_clusters = foreground_gmm.initialize_gmm(img[alpha==1])
+    bg_clusters = background_gmm.initialize_gmm(img[alpha==0])
 
     if debug:
+        k = np.ones(alpha.shape, dtype=int)*-1
+        k[alpha==1] = fg_clusters[:]
+        k[alpha==0] = bg_clusters[:]
+        visualize_clusters(img.shape, k, alpha)
+
         plt.imshow(alpha*265)
         plt.show()
         for i in xrange(alpha.shape[0]):
@@ -234,14 +239,72 @@ def get_energy(alpha, k, gmms, z, smoothness_matrix):
 
     return U + V
 
+def get_total_unary_energy_vectorized(gmm, pixels, debug=False):
+    # print k
+    prob = 0.0
+    for COMP in xrange(5):
+        k = np.ones((pixels.shape[0],), dtype=int)*COMP
+        pi_base = gmm.weights
+        # pi = pi_base[k].reshape(pixels.shape[0])
+
+        dets_base = np.array([gmm.gaussians[i].sigma_det for i in xrange(len(gmm.gaussians))])
+        #dets = np.power(np.sqrt(dets_base[k].reshape(pixels.shape[0])), -1)
+        dets = dets_base[k]
+
+        means_base = np.array([gmm.gaussians[i].mean for i in xrange(len(gmm.gaussians))])
+        # print pixels.shape, k.shape, means_base.shape,means_base[k].shape
+        means = means_base[k]
+        # means = np.swapaxes(means_base[k], 1, 2)
+        # means = means.reshape((means.shape[0:2]))
+
+        cov_base = np.array([gmm.gaussians[i].sigma_inv for i in xrange(len(gmm.gaussians))])
+        cov = cov_base[k]
+        # cov = np.swapaxes(cov_base[k], 1, 3)
+        # cov = cov.reshape((cov.shape[0:3]))
+
+        term = pixels - means
+
+        middle_matrix = np.array([np.sum(np.multiply(term, cov[:, :, 0]),axis=1),
+                                  np.sum(np.multiply(term, cov[:, :, 1]),axis=1),
+                                  np.sum(np.multiply(term, cov[:, :, 2]),axis=1)]).T
+
+        log_prob = np.sum(np.multiply(middle_matrix, term), axis=1)
+
+        if debug:
+            print pi.shape
+            print dets.shape
+            print log_prob.shape
+
+
+        prob += pi_base[COMP] * np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)
+    return -np.log(prob)
+
+    # -log(coefs[ci] * (*this)(ci, color ))
+    # pi_base[0] * np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)
+
+    # return -np.log(pi) \
+    #     + 3 * 0.5 * np.log(2*pi) \
+    #     + 0.5 * np.log(dets) \
+    #     + 0.5 * log_prob
+
+    return -np.log(pi) \
+        + 0.5 * np.log(dets) \
+        + 0.5 * log_prob
+
+    # return -np.log(pi) \
+    #     + np.sqrt(((2*np.pi)**3) * np.log(dets)) \
+    #     + 0.5 * log_prob
+
 def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
     # print k
     pi_base = gmms[alpha].weights
     pi = pi_base[k].reshape(pixels.shape[0])
+    pi[pi==0] = 1e-15
 
     dets_base = np.array([gmms[alpha].gaussians[i].sigma_det for i in xrange(len(gmms[alpha].gaussians))])
     #dets = np.power(np.sqrt(dets_base[k].reshape(pixels.shape[0])), -1)
     dets = dets_base[k].reshape(pixels.shape[0])
+    dets[dets==0] = 1e-15
 
     means_base = np.array([gmms[alpha].gaussians[i].mean for i in xrange(len(gmms[alpha].gaussians))])
     means = np.swapaxes(means_base[k], 1, 2)
@@ -267,16 +330,30 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
 
     # print 0.5*log_prob[20], get_log_prob(alpha, k[20], gmms, pixels[20])
 
-
-
     if debug:
         print pi.shape
         print dets.shape
         print log_prob.shape
 
+
+    # return - np.log(np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)) #\
+    #        - np.log(pi)
+
+    # -log(coefs[ci] * (*this)(ci, color ))
+    # pi_base[0] * np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)
+
+    # return -np.log(pi) \
+    #     + 3 * 0.5 * np.log(2*pi) \
+    #     + 0.5 * np.log(dets) \
+    #     + 0.5 * log_prob
+
     return -np.log(pi) \
         + 0.5 * np.log(dets) \
         + 0.5 * log_prob
+
+    # return -np.log(pi) \
+    #     + np.sqrt(((2*np.pi)**3) * np.log(dets)) \
+    #     + 0.5 * log_prob
 
 def get_unary_energy(alpha, k, gmms, z, pixel):
     h,w = pixel
@@ -288,9 +365,9 @@ def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
     (h,w) = pixel_1
     (nh,nw) = pixel_2
     V = 0
-    if alpha[h,w] != alpha[nh,nw]:
+    # if alpha[h,w] != alpha[nh,nw]:
         # print 'Pairwise',(h,w), (nh,nw), V
-        V = smoothness_matrix[(h,w)][(nh, nw)]
+    V = smoothness_matrix[(h,w)][(nh, nw)]
 
     return gamma *V
 
@@ -329,8 +406,10 @@ def compute_beta_vectorized(z, debug=False):
     accumulator += np.sum(temp[:,1:])
 
     num_comparisons = float(2*(m*n) - m - n)
-
-    beta = (2*(accumulator/num_comparisons))**-1
+    if debug:
+        print accumulator
+        print num_comparisons
+    beta = 1.0/(2*(accumulator/num_comparisons))
 
     return beta      
 
@@ -374,40 +453,49 @@ def compute_smoothness(z, debug=False):
 
     return smoothness_matrix
 
-def compute_smoothness_vectorized(z, debug=False):
-    EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
-    FOUR_NEIGHBORHOOD = [(0,-1,0), (1,1,0), (2,0,-1), (3,0,1)]
+def compute_smoothness_vectorized(z, neighborhood='eight', debug=False):
+    FOUR_NEIGHBORHOOD = [(-1,0), (1,0), (0,-1), (0,1)]
+    EIGHT_NEIGHBORHOOD = [(-1,0),(+1,0),(0,-1),(0,+1),(-1,-1),(-1,+1),(+1,+1),(+1,-1)]
+
+    if neighborhood == 'eight':
+        NEIGHBORHOOD = EIGHT_NEIGHBORHOOD
 
     height, width, _ = z.shape
-    global beta
     smoothness_matrix = dict()
 
     beta = compute_beta_vectorized(z)
     if debug:
         print 'beta',beta
 
-    vert_shifted_down = z - np.roll(z, 1, axis=0) # prev guy - start access at 1
-    vert_shifted_up = z - np.roll(z, -1, axis=0) # next guy - end access before 1
+    vert_shifted_up = z - np.roll(z, 1, axis=0) # (i,j) gives norm(z[i,j] - z[i-1,j])
+    vert_shifted_down = z - np.roll(z, -1, axis=0) # (i,j) gives norm(z[i,j] - z[i+1,j])
 
-    horiz_shifted_left = z - np.roll(z, 1, axis=1)
-    horiz_shifted_right = z - np.roll(z, -1, axis=1)
+    horiz_shifted_left = z - np.roll(z, 1, axis=1) # (i,j) gives norm(z[i,j] - z[i,j-1])
+    horiz_shifted_right = z - np.roll(z, -1, axis=1) # (i,j) gives norm(z[i,j] - z[i,j+1])
 
     energies = []
-    # (i,j) gives norm(z[i,j] - z[i-1,j])
-    energies.append(np.exp(-1 * beta * np.sum(np.multiply(vert_shifted_down, vert_shifted_down), axis=2)))
-    # (i,j) gives norm(z[i,j] - z[i+1,j])
     energies.append(np.exp(-1 * beta * np.sum(np.multiply(vert_shifted_up, vert_shifted_up), axis=2)))
-    # (i,j) gives norm(z[i,j] - z[i,j-1])
+    energies.append(np.exp(-1 * beta * np.sum(np.multiply(vert_shifted_down, vert_shifted_down), axis=2)))
     energies.append(np.exp(-1 * beta * np.sum(np.multiply(horiz_shifted_left, horiz_shifted_left), axis=2)))
-    # (i,j) gives norm(z[i,j] - z[i,j+1])
     energies.append(np.exp(-1 * beta * np.sum(np.multiply(horiz_shifted_right, horiz_shifted_right), axis=2)))
-    #print temp[18, 3], (np.linalg.norm(z[18,3,:] - z[18,4,:])**2)
+
+    # Diagnonal components
+    if neighborhood == 'eight':
+        nw = z - np.roll(np.roll(z, 1, axis=0), 1, axis=1) # (i,j) gives norm(z[i,j] - z[i-1,j-1])
+        ne = z - np.roll(np.roll(z, 1, axis=0), -1, axis=1) # (i,j) gives norm(z[i,j] - z[i-1,j+1])
+        se = z - np.roll(np.roll(z, -1, axis=0), -1, axis=1) # (i,j) gives norm(z[i,j] - z[i+1,j+1])
+        sw = z - np.roll(np.roll(z, -1, axis=0), 1, axis=1) # (i,j) gives norm(z[i,j] - z[i+1,j-1])
+
+        energies.append(np.exp(-1 * beta * np.sum(np.multiply(nw, nw), axis=2)))
+        energies.append(np.exp(-1 * beta * np.sum(np.multiply(ne, ne), axis=2)))
+        energies.append(np.exp(-1 * beta * np.sum(np.multiply(se, se), axis=2)))
+        energies.append(np.exp(-1 * beta * np.sum(np.multiply(sw, sw), axis=2)))
 
     for h in xrange(height):
         for w in xrange(width):
             if (h,w) not in smoothness_matrix:
                 smoothness_matrix[(h,w)] = dict()
-            for i,hh,ww in FOUR_NEIGHBORHOOD:
+            for i,(hh,ww) in enumerate(NEIGHBORHOOD):
                 nh, nw = h + hh, w + ww
                 if nw < 0 or nw >= width:
                     continue
@@ -428,8 +516,26 @@ def compute_smoothness_vectorized(z, debug=False):
 
     return smoothness_matrix
 
+def visualize_clusters(img_shape, k, alpha):
+    BG_COLORS = [[255,0,0],[200,0,0], [150,0,0], [100,0,0], [50,0,0]]
+    FG_COLORS = [[0,0,255],[0,0,200], [0,0,150], [0,0,100], [0,0,50]]
+    res = np.zeros(img_shape, dtype=np.uint8)
+    for h in xrange(img_shape[0]):
+        for w in xrange(img_shape[1]):
+            if alpha[h,w] == 0:
+                COLORS = BG_COLORS
+            else:
+                COLORS = FG_COLORS
+            res[h,w,:] = COLORS[k[h,w]]
+    plt.imshow(res)
+    plt.show()
 
-def grabcut(img, bbox, debug=False, drawImage=False):
+
+def grabcut(img, bbox, num_iterations=10, debug=False, drawImage=False):
+    # print np.sum(img)
+    # img = img/255.0
+    # print np.sum(img)
+
     if debug: 
         print 'Initializing gmms'
         tic()
@@ -444,10 +550,11 @@ def grabcut(img, bbox, debug=False, drawImage=False):
     # tic()
     # s1 = compute_smoothness(img, debug=False)
     # toc('Computing smoothness matrix normally')
-    # tic()
     smoothness_matrix = compute_smoothness_vectorized(img, debug=False)
-    # toc('Computing smoothness matrix vectorally')
+    
 
+    # if len(s1) != len(smoothness_matrix):
+    #     print 'PROBLEM lens not equal'
     # for (h,w) in s1:
     #     if len(s1[(h,w)]) != len(smoothness_matrix[(h,w)]):
     #         print 'PROBLEM lens not equal at',(h,w)
@@ -455,7 +562,7 @@ def grabcut(img, bbox, debug=False, drawImage=False):
     #         if abs(s1[(h,w)][(nh,nw)] - smoothness_matrix[(h,w)][(nh,nw)]) > 1e-12:
     #             print 'PROBLEM at',(h,w),(nh,nw),'->',s1[(h,w)][(nh,nw)],'!=',smoothness_matrix[(h,w)][(nh,nw)]
     # print 'Finished check'
-    # print smoothness_matrix
+    # return
     if debug:
         toc('Computing smoothness matrix')
 
@@ -467,8 +574,9 @@ def grabcut(img, bbox, debug=False, drawImage=False):
     previous_energy = sys.float_info.max
     if debug:
         print 'Starting EM'
-
-    for iteration in xrange(1,11):
+    
+    pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
+    for iteration in xrange(1,num_iterations+1):
         if debug:
             print "-------------------------------------------------"
             print 'Iteration %d'%iteration
@@ -476,7 +584,6 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         # 1. Assigning GMM components to pixels
         if debug:
             tic()
-        pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
         foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
         background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
 
@@ -494,13 +601,7 @@ def grabcut(img, bbox, debug=False, drawImage=False):
             toc('Assigning GMM components')
 
         # # K-means visualization
-        # COLORS = [[255,0,0],[0,255,0], [0,0,255], [255,255,0], [255,0,255]]
-        # res = np.zeros(img.shape, dtype=np.uint8)
-        # for h in xrange(img.shape[0]):
-        #     for w in xrange(img.shape[1]):
-        #         res[h,w,:] = COLORS[k[h,w]] 
-        # plt.imshow(res)
-        # plt.show()
+        # visualize_clusters(img.shape, k, alpha)
 
         # 2. Learn GMM parameters
         if debug:
@@ -574,19 +675,29 @@ def grabcut(img, bbox, debug=False, drawImage=False):
         #     print k[i,20], k_flattened[i*img.shape[1]+20]
         # return
         # sample_k = np.ones((img.shape[0]*img.shape[1], 1), dtype=int)
-        # foreground_energies = get_unary_energy_vectorized(1, sample_k*0, theta, pixels) + \
-        #                       get_unary_energy_vectorized(1, sample_k*1, theta, pixels) + \
-        #                       get_unary_energy_vectorized(1, sample_k*2, theta, pixels) + \
-        #                       get_unary_energy_vectorized(1, sample_k*3, theta, pixels) + \
-        #                       get_unary_energy_vectorized(1, sample_k*4, theta, pixels)
-        # background_energies = get_unary_energy_vectorized(0, sample_k*0, theta, pixels) + \
-        #                       get_unary_energy_vectorized(0, sample_k*1, theta, pixels) + \
-        #                       get_unary_energy_vectorized(0, sample_k*2, theta, pixels) + \
-        #                       get_unary_energy_vectorized(0, sample_k*3, theta, pixels) + \
-        #                       get_unary_energy_vectorized(0, sample_k*4, theta, pixels)
+        # foreground_energies = foreground_gmm.weights[0]*get_unary_energy_vectorized(1, sample_k*0, theta, pixels) + \
+        #                       foreground_gmm.weights[1]*get_unary_energy_vectorized(1, sample_k*1, theta, pixels) + \
+        #                       foreground_gmm.weights[2]*get_unary_energy_vectorized(1, sample_k*2, theta, pixels) + \
+        #                       foreground_gmm.weights[3]*get_unary_energy_vectorized(1, sample_k*3, theta, pixels) + \
+        #                       foreground_gmm.weights[4]*get_unary_energy_vectorized(1, sample_k*4, theta, pixels)
+        # background_energies = background_gmm.weights[0]*get_unary_energy_vectorized(0, sample_k*0, theta, pixels) + \
+        #                       background_gmm.weights[1]*get_unary_energy_vectorized(0, sample_k*1, theta, pixels) + \
+        #                       background_gmm.weights[2]*get_unary_energy_vectorized(0, sample_k*2, theta, pixels) + \
+        #                       background_gmm.weights[3]*get_unary_energy_vectorized(0, sample_k*3, theta, pixels) + \
+        #                       background_gmm.weights[4]*get_unary_energy_vectorized(0, sample_k*4, theta, pixels)
+        # foreground_energies = foreground_energies/5.0
+        # background_energies = background_energies/5.0
+        # print foreground_gmm.weights, np.sum(foreground_gmm.weights)
+        # print background_gmm.weights, np.sum(background_gmm.weights)
+        # print ' '
         
+        # test = get_unary_energy_vectorized(1,np.array([0,1,1,2,3,4]).reshape((6, 1)), theta, pixels[0:6])
+        # print test
+        # return
         foreground_energies = get_unary_energy_vectorized(1, foreground_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
         background_energies = get_unary_energy_vectorized(0, background_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
+        # foreground_energies = get_total_unary_energy_vectorized(foreground_gmm, pixels)
+        # background_energies = get_total_unary_energy_vectorized(background_gmm, pixels)
 
         pairwise_energies = np.zeros(img.shape[0:2], dtype=float)
         pairwise_time = 0.0

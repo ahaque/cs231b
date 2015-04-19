@@ -10,7 +10,7 @@ class GMM:
 
     # X - Array of pixels, not necessarily an image
     def initialize_gmm(self, X, debug=False):
-        clusterer = KMeans(n_clusters=self.K, random_state=None)
+        clusterer = KMeans(n_clusters=self.K, max_iter=10, random_state=None)
         clusters = clusterer.fit_predict(X)
 
         num_pixels = float(X.shape[0])
@@ -20,6 +20,7 @@ class GMM:
             print 'num-pixels', num_pixels
 
         for i, distribution in enumerate(self.gaussians):
+            #TODO: check for empty cluster
             distribution.update_parameters(X[clusters==i])
             if debug:
                 print 'cluster-index',np.sum(clusters==i)
@@ -27,6 +28,7 @@ class GMM:
 
         if debug:
             print 'weights', self.weights
+        return clusters
 
     def get_component(self, x):
         components = np.zeros((x.shape[0], len(self.gaussians)))
@@ -40,6 +42,7 @@ class GMM:
     def update_components(self, X, assignments):
         num_pixels = float(np.sum(assignments != -1))
 
+        # print np.sum([np.sum(assignments==i) for i in xrange(len(self.gaussians))]), num_pixels
         # gaussians = []
         # weights = []
         for i, distribution in enumerate(self.gaussians):
@@ -47,6 +50,7 @@ class GMM:
                 distribution.update_parameters(X[assignments==i])
                 self.weights[i] = (np.sum(assignments==i)/num_pixels)
             else:
+                # print 'Empty component',i
                 distribution.mean = [-1e9,-1e9,-1e9]
                 self.weights[i] = 0
         # self.gaussians = gaussians
