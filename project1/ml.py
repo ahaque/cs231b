@@ -57,7 +57,7 @@ def main():
 		image = plt.imread(DATA_DIR + image_name + DATA_EXT)
 
 		# Call GrabCut. Pass the image and bounding box.
-		segmentation = grabcut.grabcut(image, bbox)
+		segmentation = grabcut.grabcut(image, bbox, num_iterations=10)
 		#segmentation = plt.imread(SEG_DIR + image_name + SEG_EXT)
 
 		# Compare the resulting segmentation to the GT segmentation

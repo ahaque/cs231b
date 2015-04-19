@@ -4,9 +4,10 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import grabcut
-import Queue
 import time
 import threading
+from multiprocessing import Process, Queue
+import multiprocessing
 
 #################################################################
 # BEGIN REQUIRED INPUT PARAMETERS
@@ -26,7 +27,7 @@ SEG_EXT = ".bmp"
 # Output log containing accuracy, jaccard, num iterations, runtime for each image
 LOG_FILENAME = "ml.log"
 
-NUM_THREADS = 4
+NUM_PROCS = multiprocessing.cpu_count
 
 # END REQUIRED INPUT PARAMETERS
 #################################################################
@@ -51,7 +52,7 @@ def processImage(q, tid, image_name):
 	image = plt.imread(DATA_DIR + image_name + DATA_EXT)
 
 	# Call GrabCut. Pass the image and bounding box.
-	segmentation = grabcut.grabcut(image, bbox)
+	segmentation = grabcut.grabcut(image, bbox, num_iterations=10)
 
 	# Compare the resulting segmentation to the GT segmentation
 	# ground_truth is a grayscale image (2D matrix)
@@ -79,22 +80,40 @@ def main():
 	if len(sys.argv) == 2:
 		image_names = [sys.argv[1]]
 
-	q = Queue.Queue()
+	q = Queue()
 	thread_list = []
 	# Loop through all images
 	for tid, image_name in enumerate(image_names):
-		thread_list.append(threading.Thread(target=processImage, args=(q, tid, image_name)))
-		if tid == 3:
-			break
-	
-	for t in thread_list:
-		t.start()
+		thread = Process(target=processImage, args=(q, tid, image_name))
+		thread_list.append(thread)
+		thread.start()
 
-	for t in thread_list:
-		t.join()
+		while len(thread_list) >= NUM_PROCS:
+			threads_to_remove = set()
+			for i,t in enumerate(thread_list):
+				t.join(1.0)
+				if not t.is_alive():
+					threads_to_remove.add(i)
+			if len(threads_to_remove) == 0:
+				continue
+			else:
+				thread_list = [thread for i,thread in enumerate(thread_list) if i not in threads_to_remove]
 
-	s = q.get()
-	print s
+	while len(thread_list) > 0:
+			threads_to_remove = set()
+			for i,t in enumerate(thread_list):
+				t.join(1.0)
+				if not t.is_alive():
+					threads_to_remove.add(i)
+			if len(threads_to_remove) == 0:
+				continue
+			else:
+				thread_list = [thread for i,thread in enumerate(thread_list) if i not in threads_to_remove]
+
+	while not q.empty():
+		img_name, acc, jaccard = q.get()
+		all_accuracies.append(acc)
+		all_jaccards.append(jaccard)
 
 	print "------------------------------------------------------"
 	print "Number of Images:", len(filenames)
