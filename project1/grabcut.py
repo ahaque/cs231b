@@ -3,6 +3,7 @@ from gmm import GMM
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import os
 
 try:
     import third_party.pymaxflow.pymaxflow as pymaxflow
@@ -516,8 +517,8 @@ def compute_smoothness_vectorized(z, neighborhood='eight', debug=False):
 
     return smoothness_matrix
 
-def visualize_clusters(img_shape, k, alpha):
-    BG_COLORS = [[255,0,0],[200,0,0], [150,0,0], [100,0,0], [50,0,0]]
+def visualize_clusters(img_shape, k, alpha, iteration, image_name, showImage=False):
+    BG_COLORS = [[204,102,0],[255,128,0],[255,153,51],[255,178,102],[255,204,153]]
     FG_COLORS = [[0,0,255],[0,0,200], [0,0,150], [0,0,100], [0,0,50]]
     res = np.zeros(img_shape, dtype=np.uint8)
     for h in xrange(img_shape[0]):
@@ -527,11 +528,20 @@ def visualize_clusters(img_shape, k, alpha):
             else:
                 COLORS = FG_COLORS
             res[h,w,:] = COLORS[k[h,w]]
-    plt.imshow(res)
-    plt.show()
+
+    target_dir = "output/components/" + image_name 
+
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    plt.imsave(os.path.join(target_dir, "iter_" + str(iteration) + ".png"), res)
+
+    if showImage == True:
+        plt.imshow(res)
+        plt.show()
 
 
-def grabcut(img, bbox, num_iterations=10, debug=False, drawImage=False):
+def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=False):
     # print np.sum(img)
     # img = img/255.0
     # print np.sum(img)
@@ -601,7 +611,7 @@ def grabcut(img, bbox, num_iterations=10, debug=False, drawImage=False):
             toc('Assigning GMM components')
 
         # # K-means visualization
-        # visualize_clusters(img.shape, k, alpha)
+        visualize_clusters(img.shape, k, alpha, iteration, image_name)
 
         # 2. Learn GMM parameters
         if debug:
@@ -726,7 +736,7 @@ def grabcut(img, bbox, num_iterations=10, debug=False, drawImage=False):
                 # Compute pairwise edge weights
                 start_time = time.time()
                 pairwise_energy = 0.0
-                for (nh, nw) in smoothness_matrix[(h,w)].keys():
+                for (nh, nw) in smoothness_matrix[(h,w)]:
                     neighbor_index = nh * img.shape[1] + nw
                     # neighbor_index = nw * img.shape[1] + nh
                     # print (h,w),(nh, nw), index, neighbor_index, img.shape
