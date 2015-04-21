@@ -341,3 +341,46 @@ Number of Images: 30
 Average Accuracy: 95.2666666667
 Average Jaccard: 84.7666666667
 ------------------------------------------------------
+
+
+
+ENTROPY RESULTS
+---------------
+-88.61 : person2
+-89.06 : person1
+-89.07 : bush
+-89.47 : person4
+-89.99 : banana3
+-90.51 : person7
+-91.12 : scissors
+-91.49 : person6
+-91.64 : person8
+-92.10 : flower
+-92.46 : banana2
+-92.61 : tennis
+-93.00 : cross
+-93.39 : bool
+-93.40 : person3
+-93.88 : llama
+-93.90 : stone2
+-94.26 : doll
+-94.56 : grave
+-96.97 : music
+-97.39 : ceramic
+-98.50 : elefant
+-98.51 : memorial
+-99.46 : sheep
+-100.19 : banana1
+-101.03 : person5
+-101.34 : book
+-104.08 : teddy
+-110.58 : stone1
+-156.03 : fullmoon
+
+
+fullmoon 99.0 92.0 -> 98 75 - -
+stone1 99.0 96.0 -> 97 90 - -
+teddy 99.0 97.0 -> 98 92 - -
+book 97.0 94.0 -> 91 82 - -
+person5 98.0 78.0 -> 96 64 - -
+banana1 66.0 43.0 -> 68 44 + +
