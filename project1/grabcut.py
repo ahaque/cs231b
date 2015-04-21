@@ -43,10 +43,20 @@ def toc(task_label):
 def get_args():
     parser = argparse.ArgumentParser(
         description='Implementation of the GrabCut algorithm.')
-    parser.add_argument('-i','--image_file', 
-        nargs=1, help='Input image name along with its relative path')
+    parser.add_argument('-i', '--image-file', dest="image_file",
+        required=True,
+        help='Input image name along with its relative path')
     parser.add_argument('-b','--bbox', nargs=4, default=None,
         help='Bounding box of the foreground object')
+    parser.add_argument('-n','--num-iterations', dest="num_iterations",
+        type=int,default=10,
+        help='Number of iterations to run GrabCut for')
+    parser.add_argument('-c','--num-components', dest="num_components",
+        type=int,default=5,
+        help='Number of components in each GMM')
+    parser.add_argument('-e','--enable-user-interaction', dest="user_interaction",
+        action="store_true", default=False,
+        help='Flag to enable user interaction to provide more feedback')
 
     return parser.parse_args()
 
@@ -372,45 +382,20 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
     cov = cov.reshape((cov.shape[0:3]))
 
     term = pixels - means
-    # middle_matrix = (np.multiply(term, cov[:, :, 0]) + np.multiply(term, cov[:, :, 1]) +np.multiply(term, cov[:, :, 2]))
     middle_matrix = np.array([np.sum(np.multiply(term, cov[:, :, 0]),axis=1),
                               np.sum(np.multiply(term, cov[:, :, 1]),axis=1),
                               np.sum(np.multiply(term, cov[:, :, 2]),axis=1)]).T
-    # print middle_matrix.shape
 
     log_prob = np.sum(np.multiply(middle_matrix, term), axis=1)
-
-    # print 0.5*log_prob[5], get_log_prob(alpha, k[5], gmms, pixels[5])
-    # print 0.5*log_prob[1], get_log_prob(alpha, k[1], gmms, pixels[1])
-
-    # print 0.5*log_prob[500], get_log_prob(alpha, k[500], gmms, pixels[500])
-
-    # print 0.5*log_prob[20], get_log_prob(alpha, k[20], gmms, pixels[20])
 
     if debug:
         print pi.shape
         print dets.shape
         print log_prob.shape
 
-
-    # return - np.log(np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)) #\
-    #        - np.log(pi)
-
-    # -log(coefs[ci] * (*this)(ci, color ))
-    # pi_base[0] * np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)
-
-    # return -np.log(pi) \
-    #     + 3 * 0.5 * np.log(2*pi) \
-    #     + 0.5 * np.log(dets) \
-    #     + 0.5 * log_prob
-
     return -np.log(pi) \
         + 0.5 * np.log(dets) \
         + 0.5 * log_prob
-
-    # return -np.log(pi) \
-    #     + np.sqrt(((2*np.pi)**3) * np.log(dets)) \
-    #     + 0.5 * log_prob
 
 def get_unary_energy(alpha, k, gmms, z, pixel):
     h,w = pixel
@@ -421,12 +406,9 @@ def get_unary_energy(alpha, k, gmms, z, pixel):
 def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
     (h,w) = pixel_1
     (nh,nw) = pixel_2
-    V = 0
-    # if alpha[h,w] != alpha[nh,nw]:
-        # print 'Pairwise',(h,w), (nh,nw), V
     V = smoothness_matrix[(h,w)][(nh, nw)]
 
-    return gamma *V
+    return gamma*V
 
 def compute_gamma(z, img_name, debug=False):
     R,G,B = z[:,:,0],z[:,:,1],z[:,:,2]
@@ -504,9 +486,14 @@ def compute_beta_vectorized(z, debug=False):
 
     return beta      
 
-def compute_smoothness(z, debug=False):
+def compute_smoothness(z, neighborhood='eight', debug=False):
     EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
     FOUR_NEIGHBORHOOD = [(-1,0), (0,-1), (0,1), (1,0)]
+
+    if neighborhood == 'eight':
+        NEIGHBORHOOD = EIGHT_NEIGHBORHOOD
+    else:
+        NEIGHBORHOOD = FOUR_NEIGHBORHOOD
 
     height, width, _ = z.shape
     global beta
@@ -522,7 +509,7 @@ def compute_smoothness(z, debug=False):
         for w in xrange(width):
             if (h,w) not in smoothness_matrix:
                 smoothness_matrix[(h,w)] = dict()
-            for hh,ww in EIGHT_NEIGHBORHOOD:
+            for hh,ww in NEIGHBORHOOD:
                 nh, nw = h + hh, w + ww
                 if nw < 0 or nw >= width:
                     continue
@@ -609,7 +596,7 @@ def compute_smoothness_vectorized(z, neighborhood='eight', debug=False):
 
     return smoothness_matrix
 
-def visualize_clusters(img_shape, k, alpha, iteration, image_name, showImage=False):
+def visualize_clusters(img_shape, k, alpha, iteration, image_name, show_image=False, save_image=True):
     BG_COLORS = [[204,102,0],[255,128,0],[255,153,51],[255,178,102],[255,204,153]]
     FG_COLORS = [[0,0,255],[0,0,200], [0,0,150], [0,0,100], [0,0,50]]
     res = np.zeros(img_shape, dtype=np.uint8)
@@ -632,12 +619,27 @@ def visualize_clusters(img_shape, k, alpha, iteration, image_name, showImage=Fal
         plt.imshow(res)
         plt.show()
 
+def verify_smoothness_matrix(img):
+    smoothness_matrix1 = compute_smoothness_vectorized(img, neighborhood='eight', debug=False)
+    smoothness_matrix2 = compute_smoothness(img, neighborhood='eight', debug=False)
 
-def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_segmentations=False, debug=False, drawImage=False):
-    # print np.sum(img)
-    # img = img/255.0
-    # print np.sum(img)
+    if len(s1) != len(smoothness_matrix):
+        print 'PROBLEM lens not equal'
+        return False
+    for (h,w) in s1:
+        if len(s1[(h,w)]) != len(smoothness_matrix[(h,w)]):
+            print 'PROBLEM lens not equal at',(h,w)
+            return False
+        for (nh,nw) in s1[(h,w)]:
+            if abs(s1[(h,w)][(nh,nw)] - smoothness_matrix[(h,w)][(nh,nw)]) > 1e-12:
+                print 'PROBLEM at',(h,w),(nh,nw),'->',s1[(h,w)][(nh,nw)],'!=',smoothness_matrix[(h,w)][(nh,nw)]
+                return False
+    print 'Finished check'
+    return True
 
+def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10, 
+    num_components=5, get_all_segmentations=False, debug=False, drawImage=False,
+    visualize_clusters=False):
     if debug: 
         print 'Initializing gmms'
         tic()
@@ -649,22 +651,9 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
     if debug:
         print 'Computing smoothness matrix...'
         tic()
-    # tic()
-    # s1 = compute_smoothness(img, debug=False)
-    # toc('Computing smoothness matrix normally')
+
     smoothness_matrix = compute_smoothness_vectorized(img, neighborhood='eight', debug=False)
     
-
-    # if len(s1) != len(smoothness_matrix):
-    #     print 'PROBLEM lens not equal'
-    # for (h,w) in s1:
-    #     if len(s1[(h,w)]) != len(smoothness_matrix[(h,w)]):
-    #         print 'PROBLEM lens not equal at',(h,w)
-    #     for (nh,nw) in s1[(h,w)]:
-    #         if abs(s1[(h,w)][(nh,nw)] - smoothness_matrix[(h,w)][(nh,nw)]) > 1e-12:
-    #             print 'PROBLEM at',(h,w),(nh,nw),'->',s1[(h,w)][(nh,nw)],'!=',smoothness_matrix[(h,w)][(nh,nw)]
-    # print 'Finished check'
-    # return
     if debug:
         toc('Computing smoothness matrix')
 
@@ -681,12 +670,13 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
     segmentations.append(alpha)
     user_definite_background = set()
     pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
-    for user_interaction_iteration in xrange(1,2):
+    for user_interaction_iteration in xrange(2):
         for iteration in xrange(1,num_iterations+1):
             if debug:
-                print "-------------------------------------------------"
+                print '----------------------------------------------'
                 print 'Iteration %d'%iteration
                 print np.sum(alpha)/float(img.shape[0]*img.shape[1])
+
             # 1. Assigning GMM components to pixels
             if debug:
                 tic()
@@ -697,17 +687,13 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
             k[alpha==1] = foreground_components[alpha==1]
             k[alpha==0] = background_components[alpha==0]
 
-            # for h in xrange(img.shape[0]):
-            #     for w in xrange(img.shape[1]):
-            #         if alpha[h,w] == 1:
-            #             k[h,w] = foreground_gmm.get_component(img[h,w,:])
-            #         else:
-                        # k[h,w] = background_gmm.get_component(img[h,w,:])
             if debug:
                 toc('Assigning GMM components')
 
-            # # K-means visualization
-            #visualize_clusters(img.shape, k, alpha, iteration, image_name, showImage=False)
+            # Cluster visualization
+            if visualize_clusters:
+                visualize_clusters(img.shape, k, alpha, iteration, image_name, 
+                    show_image=True, save_image=False)
 
             # 2. Learn GMM parameters
             if debug:
@@ -718,54 +704,11 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
             background_assignments = -1*np.ones(k.shape)
             background_assignments[alpha==0] = k[alpha==0]
 
-            # print 'Foreground:',[np.sum(foreground_assignments==q) for q in [-1,0,1,2,3,4]]
-            # print 'Background:',[np.sum(background_assignments==q) for q in [-1,0,1,2,3,4]]
-
-            # WHY ARE WE REASSINGING - WE JUST CREATED the gaussians from a set of data, the
-            # gaussian should fit it lol
-            # 
-            # print k.shape, foreground_assignments.shape
-            # print np.sum(foreground_assignments != -1), np.sum(background_assignments != -1)
-            # print img.shape[0]*img.shape[1]
-
-            # print k[alpha==0]
-            # return
-            # 
-            # print 'beforeeeee',len(foreground_gmm.gaussians)
-            # print 'beforeeeee',len(background_gmm.gaussians)
-            # foreground_components[alpha==0] = -1
-            # background_components[alpha==1] = -1
-
-            # print ''
-            # print ''
-            # print np.sum(foreground_components==-1)+np.sum(background_components==-1), img.shape[0]*img.shape[1]
-            # print np.sum(foreground_assignments==foreground_components), np.sum(background_assignments==background_components)
-            # print ''
-            # print ''
-
             foreground_gmm.update_components(img, foreground_assignments)
             background_gmm.update_components(img, background_assignments)
 
-            # print 'Foreground means:',[foreground_gmm.gaussians[q].mean for q in [0,1,2,3,4]]
-            # print 'Background means:',[background_gmm.gaussians[q].mean for q in [0,1,2,3,4]]
             if debug:
                 toc('Updating GMM parameters')
-
-            # if debug:
-            #     tic()
-            # foreground_components = foreground_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
-            # background_components = background_gmm.get_component(pixels).reshape((img.shape[0], img.shape[1]))
-
-            # k[alpha==1] = foreground_components[alpha==1]
-            # k[alpha==0] = background_components[alpha==0]
-            # if debug:
-            #     toc('Assigning GMM components again')
-
-            # print 'Foreground',[np.sum(foreground_components==i) for i in xrange(5)]
-            # print 'Background',[np.sum(background_components==i) for i in xrange(5)]
-
-            # print 'aftaaaaaaaa',len(foreground_gmm.gaussians)
-            # print 'aftaaaaaaaa',len(background_gmm.gaussians)
 
             # 3. Estimate segmentation using min cut
             # Update weights
@@ -774,46 +717,16 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
                 tic()
             graph = create_graph(img)
             theta = (background_gmm, foreground_gmm)
-            total_energy = 0
 
-            k_flattened =  k.reshape((img.shape[0]*img.shape[1], 1))
-            # for i in range(100):
-            #     print k[i,20], k_flattened[i*img.shape[1]+20]
-            # return
-            # sample_k = np.ones((img.shape[0]*img.shape[1], 1), dtype=int)
-            # foreground_energies = foreground_gmm.weights[0]*get_unary_energy_vectorized(1, sample_k*0, theta, pixels) + \
-            #                       foreground_gmm.weights[1]*get_unary_energy_vectorized(1, sample_k*1, theta, pixels) + \
-            #                       foreground_gmm.weights[2]*get_unary_energy_vectorized(1, sample_k*2, theta, pixels) + \
-            #                       foreground_gmm.weights[3]*get_unary_energy_vectorized(1, sample_k*3, theta, pixels) + \
-            #                       foreground_gmm.weights[4]*get_unary_energy_vectorized(1, sample_k*4, theta, pixels)
-            # background_energies = background_gmm.weights[0]*get_unary_energy_vectorized(0, sample_k*0, theta, pixels) + \
-            #                       background_gmm.weights[1]*get_unary_energy_vectorized(0, sample_k*1, theta, pixels) + \
-            #                       background_gmm.weights[2]*get_unary_energy_vectorized(0, sample_k*2, theta, pixels) + \
-            #                       background_gmm.weights[3]*get_unary_energy_vectorized(0, sample_k*3, theta, pixels) + \
-            #                       background_gmm.weights[4]*get_unary_energy_vectorized(0, sample_k*4, theta, pixels)
-            # foreground_energies = foreground_energies/5.0
-            # background_energies = background_energies/5.0
-            # print foreground_gmm.weights, np.sum(foreground_gmm.weights)
-            # print background_gmm.weights, np.sum(background_gmm.weights)
-            # print ' '
-            
-            # test = get_unary_energy_vectorized(1,np.array([0,1,1,2,3,4]).reshape((6, 1)), theta, pixels[0:6])
-            # print test
-            # return
             foreground_energies = get_unary_energy_vectorized(1, foreground_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
             background_energies = get_unary_energy_vectorized(0, background_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
-            # foreground_energies = get_total_unary_energy_vectorized(foreground_gmm, pixels)
-            # background_energies = get_total_unary_energy_vectorized(background_gmm, pixels)
 
             pairwise_energies = np.zeros(img.shape[0:2], dtype=float)
-            pairwise_time = 0.0
             done_with = set()
             for h in xrange(img.shape[0]):
                 for w in xrange(img.shape[1]):
                     index = h*img.shape[1] + w
-                    #index = w*img.shape[1] + h
                     # If pixel is outside of bounding box, assign large unary energy
-                    # See Jon's lecture notes on GrabCut, slide 11
                     if w < bbox[0] or w > bbox[2] or h < bbox[1] or h > bbox[3]:
                         w1 = 1e9
                         w2 = 0
@@ -823,52 +736,27 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
                     else:
                         # Source: Compute U for curr node
                         start_time = time.time()
-                        w1 = foreground_energies[index] # Foregound
-                        w2 = background_energies[index] # Background
-                        # print w1,get_unary_energy(1, k, theta, img, (h,w))
-                        # print w2,get_unary_energy(0, k, theta, img, (h,w))
-                        # print ''
+                        w1 = foreground_energies[index] # to background node
+                        w2 = background_energies[index] # to foreground node
 
-                    # Sink: Compute U for curr node
                     graph.add_tweights(index, w1, w2)
 
                     # Compute pairwise edge weights
-                    start_time = time.time()
                     pairwise_energy = 0.0
                     for (nh, nw) in smoothness_matrix[(h,w)]:
                         neighbor_index = nh * img.shape[1] + nw
-                        # neighbor_index = nw * img.shape[1] + nh
-                        # print (h,w),(nh, nw), index, neighbor_index, img.shape
                         if (index, neighbor_index) in done_with:
                             continue
                         edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
                         graph.add_edge(index, neighbor_index, edge_weight,edge_weight)
                         done_with.add((index, neighbor_index))
                         done_with.add((neighbor_index, index))
-    # 
                         pairwise_energy += edge_weight
-                    #if debug:
-                    if w1 < 1e8 and iteration == 50: 
-                        print (h,w), w1, w2, pairwise_energy
-                    pairwise_energies[h,w] = pairwise_energy
-                    pairwise_time = time.time() - start_time
-                        # print (h,w),'->',(nh,nw),':',edge_weights[edge_map[(h,w,nh,nw)]]
-                        # 
-            # import matplotlib.cm as cm
-            # plt.subplot(2, 2, 1)
-            # plt.imshow(np.floor(foreground_energies/np.max(foreground_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
-            # plt.subplot(2, 2, 2)
-            # plt.imshow(np.floor(background_energies/np.max(background_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
-            # plt.subplot(2, 2, 3)
-            # plt.imshow(np.floor(pairwise_energies/np.max(pairwise_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
-            # plt.subplot(2, 2, 4)
-            # plt.imshow(np.floor(pairwise_energies/np.max(pairwise_energies)*255).reshape(img.shape[0:2]), cmap = cm.Greys_r)
-            # plt.show()
 
+                    pairwise_energies[h,w] = pairwise_energy
 
             if debug:
                 toc("Creating graph")
-                print "pairwise_time:", pairwise_time
 
             # Graph has been created, run minCut
             if debug:
@@ -882,30 +770,18 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
             # Update alpha
             if debug:
                 tic()
-            # num_changed_pixels = 0
-            # for index in xrange(len(partition)):
-            #     h = index // img.shape[1]
-            #     w = index %  img.shape[1]
-            #     if partition[index] != alpha[h,w]:
-            #         alpha[h,w] = partition[index]
-            #         num_changed_pixels += 1
+
             partition = partition.reshape(alpha.shape)
-            # n = num_changed_pixels
             num_changed_pixels = np.sum(np.abs(partition-alpha))
             alpha = partition
 
             if debug:
                 toc("Updating alphas")
 
-            # Terminate once the energy has converged
-            # total_energy = get_energy(alpha, k, (background_gmm, foreground_gmm), img, smoothness_matrix)
-            # relative_change = abs(previous_energy - total_energy)/previous_energy
-            # previous_energy = total_energy
-            # 
             relative_change = num_changed_pixels/float(img.shape[0]*img.shape[1])
 
             if drawImage:
-                if iteration % 10 == 0:# or relative_change < CONVERGENCE_CRITERON:
+                if iteration % 10 == 0 or (iteration == num_iterations and not user_interaction):
                     result = np.reshape(partition, (img.shape[0], img.shape[1]))*255
                     result = result.astype(dtype=np.uint8)
                     result = np.dstack((result, result, result))
@@ -917,25 +793,26 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
             if relative_change < CONVERGENCE_CRITERON:
                 if debug:
                     print "EM has converged. Terminating."
-                # break
 
         # Prompt for user interaction
-        """
-        user_img = img.copy()
-        user_img[alpha == 0] = 0
-        points = get_user_polyline(user_img)
-        # Add to "definite background" set
-        neighborhood_offsets = range(-5,6)
-        for (x,y) in points:
-            for xxx in neighborhood_offsets:
-                for yyy in neighborhood_offsets:
-                    current_x = int(x + xxx)
-                    current_y = int(y + yyy)
-                    if current_x < 0 or current_y < 0 or current_x > img.shape[0] or current_y > img.shape[1]:
-                        continue
-                    user_definite_background.add((current_x, current_y))
-                    alpha[current_y,current_x] = 0
-        """
+        if user_interaction:
+            user_img = img.copy()
+            user_img[alpha == 0] = 0
+            points = get_user_polyline(user_img)
+            # Add to "definite background" set
+            neighborhood_offsets = range(-5,6)
+            for (x,y) in points:
+                for xxx in neighborhood_offsets:
+                    for yyy in neighborhood_offsets:
+                        current_x = int(x + xxx)
+                        current_y = int(y + yyy)
+                        if current_x < 0 or current_y < 0 or current_x > img.shape[0] or current_y > img.shape[1]:
+                            continue
+                        user_definite_background.add((current_x, current_y))
+                        alpha[current_y,current_x] = 0
+        else:
+            break
+        
     if get_all_segmentations:
         return segmentations
     else:
@@ -943,33 +820,25 @@ def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_
 
 def main():
     args = get_args()
-    img = load_image(*args.image_file)
+    img = load_image(args.image_file)
 
     if args.bbox:
         bbox = [int(p) for p in args.bbox]
     else:
         bbox = get_user_selection(img)
-    print 'Bounding box:',bbox
-
-    # plt.imshow(img)
-    # currentAxis = plt.gca()
-    # currentAxis.add_patch(Rectangle((bbox[0], bbox[1]), bbox[2]-bbox[0], bbox[3]-bbox[1], facecolor="grey"))
-    # plt.show()
-
-    # small_banana_bbox = [3.3306451612903203, 3.7338709677419359, 94.661290322580641, 68.25]
-    # big_banana_bbox = [27.887096774193537, 33.048387096774036, 604.66129032258061, 451.11290322580641]
-    # bbox = small_banana_bbox
+    
+    print '----------------------------------------------'
+    print 'Running GrabCut with the Following parameters:'
+    print 'Image: %s'%args.image_file
+    print 'Bounding Box: %d %d %d %d'%tuple(bbox)
+    print 'Num Iterations: %d'%args.num_iterations
+    print 'Num Components: %d'%args.num_components
+    print 'User Interaction Enabled: %r'%args.user_interaction
+    print '----------------------------------------------'
      
-    grabcut(img, bbox, args.image_file[0], num_iterations=7, num_components=1, debug=True, drawImage=True)
+    grabcut(img, bbox, args.image_file, num_iterations=args.num_iterations, 
+        num_components=args.num_components, user_interaction=args.user_interaction, 
+        debug=True, drawImage=True)
 
-# TODO:
-# [DONE] gt : clear namespace
-# [DONE] 4 neighbors
-# [DONE] Optimize node matrix creation with index computation while creating graph
-# [DONE] Optimize pairwise edge weight computation
-# [DONE] Exact bounding box from segmentation
-# [DONE] Singular covariance matrix - Add 1e^-8*identity
-# [DONE] Manage Empty clusters`
-# 
 if __name__ == '__main__':
     main()
