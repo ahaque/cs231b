@@ -278,7 +278,6 @@ TIGHT BOUNDING BOXES
 --------------------
 Thread for teddy done.
 Thread for bool done.
-Thread for bush done.
 Thread for fullmoon done.
 Thread for llama done.
 Thread for tennis done.
@@ -286,47 +285,48 @@ Thread for banana1 done.
 Thread for banana2 done.
 Thread for banana3 done.
 Thread for book done.
+Thread for bush done.
 Thread for doll done.
-Thread for memorial done.
+Thread for grave done.
 Thread for person2 done.
-Thread for person3 done.
+Thread for person4 done.
+Thread for person5 done.
 Thread for person6 done.
 Thread for sheep done.
 Thread for stone1 done.
 Thread for stone2 done.
 Thread for flower done.
-Thread for grave done.
-Thread for person4 done.
-Thread for person5 done.
-Thread for person8 done.
+Thread for person3 done.
 Thread for ceramic done.
-Thread for music done.
-Thread for person1 done.
-Thread for person7 done.
-Thread for cross done.
 Thread for elefant done.
+Thread for person7 done.
+Thread for person8 done.
+Thread for memorial done.
+Thread for cross done.
+Thread for person1 done.
+Thread for music done.
 Thread for scissors done.
 banana1 70.0 46.0
 banana2 99.0 96.0
-banana3 90.0 70.0
+banana3 91.0 72.0
 book 97.0 94.0
-bool 83.0 42.0
+bool 83.0 41.0
 bush 96.0 77.0
 ceramic 99.0 97.0
-cross 59.0 39.0
-doll 99.0 98.0
+cross 67.0 53.0
+doll 99.0 97.0
 elefant 96.0 89.0
 flower 99.0 98.0
-fullmoon 99.0 94.0
+fullmoon 99.0 93.0
 grave 98.0 89.0
-llama 98.0 93.0
-memorial 98.0 91.0
+llama 99.0 95.0
+memorial 98.0 92.0
 music 98.0 96.0
-person1 99.0 97.0
+person1 99.0 98.0
 person2 99.0 97.0
 person3 99.0 95.0
-person4 95.0 74.0
-person5 98.0 77.0
+person4 95.0 75.0
+person5 98.0 78.0
 person6 97.0 79.0
 person7 99.0 89.0
 person8 99.0 95.0
@@ -334,10 +334,10 @@ scissors 95.0 68.0
 sheep 99.0 93.0
 stone1 99.0 98.0
 stone2 99.0 98.0
-teddy 99.0 96.0
+teddy 99.0 97.0
 tennis 94.0 58.0
 ------------------------------------------------------
 Number of Images: 30
-Average Accuracy: 94.9333333333
-Average Jaccard: 84.1
+Average Accuracy: 95.2666666667
+Average Jaccard: 84.7666666667
 ------------------------------------------------------
