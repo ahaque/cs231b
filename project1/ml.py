@@ -38,6 +38,8 @@ def computeAccuracy(segmentation, ground_truth):
     return 100 * (num_correct_background + num_correct_foreground) / num_pixels
 
 def main():
+    SAVE_IMAGES = False
+
     # Get image names
     filenames = os.listdir(DATA_DIR)
     image_names = [f.replace(DATA_EXT, '') for f in filenames]
@@ -70,21 +72,22 @@ def main():
         all_accuracies.append(accuracy)
         all_jaccards.append(jaccard)
 
-        # Write images to file
-        target_dir = "output/segmentations/" 
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
+        if SAVE_IMAGES:
+            # Write images to file
+            target_dir = "output/segmentations/" 
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
 
-        image[segmentation == 0] = 0
-        plt.imsave(os.path.join(target_dir, image_name + ".png"), image)
+            image[segmentation == 0] = 0
+            plt.imsave(os.path.join(target_dir, image_name + ".png"), image)
 
-        segmentation = segmentation.astype(dtype=np.uint8)*255
-        segmentation = np.dstack((segmentation, segmentation, segmentation))
+            segmentation = segmentation.astype(dtype=np.uint8)*255
+            segmentation = np.dstack((segmentation, segmentation, segmentation))
 
-        target_dir = "output/segmentation_masks/" 
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
-        plt.imsave(os.path.join(target_dir, image_name + ".png"), segmentation)
+            target_dir = "output/segmentation_masks/" 
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+            plt.imsave(os.path.join(target_dir, image_name + ".png"), segmentation)
         
         # Write to log file
         print image_name, accuracy, jaccard
