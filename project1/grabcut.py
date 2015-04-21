@@ -642,7 +642,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
     
     user_definite_background = set()
     pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
-    for user_interaction_iteration in xrange(1,3):
+    for user_interaction_iteration in xrange(1,2):
         for iteration in xrange(1,num_iterations+1):
             if debug:
                 print "-------------------------------------------------"
@@ -668,7 +668,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
                 toc('Assigning GMM components')
 
             # # K-means visualization
-            visualize_clusters(img.shape, k, alpha, iteration, image_name, showImage=True)
+            # visualize_clusters(img.shape, k, alpha, iteration, image_name, showImage=True)
 
             # 2. Learn GMM parameters
             if debug:
@@ -881,6 +881,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
                 # break
 
         # Prompt for user interaction
+        """
         user_img = img.copy()
         user_img[alpha == 0] = 0
         points = get_user_polyline(user_img)
@@ -895,7 +896,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
                         continue
                     user_definite_background.add((current_x, current_y))
                     alpha[current_y,current_x] = 0
-
+        """
     return alpha
 
 
@@ -918,7 +919,7 @@ def main():
     # big_banana_bbox = [27.887096774193537, 33.048387096774036, 604.66129032258061, 451.11290322580641]
     # bbox = small_banana_bbox
      
-    grabcut(img, bbox, "banana", debug=True, drawImage=True, num_iterations=2)
+    grabcut(img, bbox, "flower", debug=True, drawImage=True, num_iterations=2)
 
 # TODO:
 # gt : clear namespace
