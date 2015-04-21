@@ -58,7 +58,7 @@ def main():
         image = plt.imread(DATA_DIR + image_name + DATA_EXT)
 
         # Call GrabCut. Pass the image and bounding box.
-        segmentation = grabcut.grabcut(image, bbox, image_name, num_iterations=10)
+        segmentation = grabcut.grabcut(image, bbox, image_name, num_iterations=8, num_components=2)
 
         # Compare the resulting segmentation to the GT segmentation
         # ground_truth is a grayscale image (2D matrix)

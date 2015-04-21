@@ -410,39 +410,28 @@ def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
 
     return gamma*V
 
-def compute_gamma(z, img_name, debug=False):
+def compute_gamma(z, img_name, debug=False, save_fig=False):
     R,G,B = z[:,:,0],z[:,:,1],z[:,:,2]
     img = z.copy()
     matplotlib.colors.rgb_to_hsv(img)
-    H = img[:,:,0]
-    H = H.flatten()
 
-    total_hue = np.sum(H)
+    H = img[:,:,0].flatten()
+    H = H[np.random.randint(H.shape[0],size=100000)]
 
-    probs = H/float(total_hue)
-    print 'Entropy',-np.sum(np.multiply(probs, np.log2(probs)))
+    probs = np.zeros((256))
+    for i in xrange(256):
+        probs[i] = np.sum(H==i)
     
-    plt.figure()
-    plt.imshow(z)
-    plt.savefig('imgs/'+img_name+'-rgb.png', bbox_inches='tight')
-    
-    plt.figure()
-    plt.hist(R.flatten(), 256, range=(0.0,255.0), color='r', edgecolor='r')
-    plt.savefig('imgs/' + img_name +'-r.eps', bbox_inches='tight')
+    probs = probs[probs != 0]
+    entropy = -np.sum(np.multiply(probs, np.log2(probs)))
+    print "%s: %0.2f"%(img_name, entropy/10000)
 
-    plt.figure()
-    plt.hist(G.flatten(), 256, range=(0.0,255.0), color='g', edgecolor='g')
-    plt.savefig('imgs/' + img_name +'-g.eps', bbox_inches='tight')
-    
-    plt.figure()
-    plt.hist(B.flatten(), 256, range=(0.0,255.0), color='b', edgecolor='b')
-    plt.savefig('imgs/' + img_name +'-b.eps', bbox_inches='tight')
-
-    plt.figure()
-    plt.hist(H.flatten(), 256, range=(0.0,255.0), color='k', edgecolor='k')
-    plt.savefig('imgs/' + img_name +'-h.eps', bbox_inches='tight')
-
-    sys.exit()
+    if savefig:
+        plt.figure()
+        plt.hist(H, 256, range=(0.0,255.0), color='k', edgecolor='k')
+        plt.xlabel("%s: %0.2f"%(img_name, entropy/10000))
+        plt.savefig('hists/' + img_name +'-h.eps', bbox_inches='tight')
+        plt.close()
 
 def compute_beta(z, debug=False):
     accumulator = 0
