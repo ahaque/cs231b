@@ -1,6 +1,7 @@
 from matplotlib.patches import Rectangle
 from gmm import GMM
 import matplotlib.pyplot as plt
+import matplotlib.colors
 import numpy as np
 import argparse
 import os
@@ -161,7 +162,7 @@ def initialization(img, bbox, num_components=5, debug=False):
 
     for h in xrange(height): # Rows
         for w in xrange(width): # Columns
-            if (w > xmin) and (w < xmax) and (h > ymin) and (h < ymax):
+            if (w >= xmin) and (w <= xmax) and (h >= ymin) and (h <= ymax):
                 # Foreground
                 alpha[h,w] = 1
 
@@ -372,6 +373,40 @@ def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
 
     return gamma *V
 
+def compute_gamma(z, img_name, debug=False):
+    R,G,B = z[:,:,0],z[:,:,1],z[:,:,2]
+    img = z.copy()
+    matplotlib.colors.rgb_to_hsv(img)
+    H = img[:,:,0]
+    H = H.flatten()
+
+    total_hue = np.sum(H)
+
+    probs = H/float(total_hue)
+    print 'Entropy',-np.sum(np.multiply(probs, np.log2(probs)))
+    
+    plt.figure()
+    plt.imshow(z)
+    plt.savefig('imgs/'+img_name+'-rgb.png', bbox_inches='tight')
+    
+    plt.figure()
+    plt.hist(R.flatten(), 256, range=(0.0,255.0), color='r', edgecolor='r')
+    plt.savefig('imgs/' + img_name +'-r.eps', bbox_inches='tight')
+
+    plt.figure()
+    plt.hist(G.flatten(), 256, range=(0.0,255.0), color='g', edgecolor='g')
+    plt.savefig('imgs/' + img_name +'-g.eps', bbox_inches='tight')
+    
+    plt.figure()
+    plt.hist(B.flatten(), 256, range=(0.0,255.0), color='b', edgecolor='b')
+    plt.savefig('imgs/' + img_name +'-b.eps', bbox_inches='tight')
+
+    plt.figure()
+    plt.hist(H.flatten(), 256, range=(0.0,255.0), color='k', edgecolor='k')
+    plt.savefig('imgs/' + img_name +'-h.eps', bbox_inches='tight')
+
+    sys.exit()
+
 def compute_beta(z, debug=False):
     accumulator = 0
     m = z.shape[0]
@@ -460,6 +495,8 @@ def compute_smoothness_vectorized(z, neighborhood='eight', debug=False):
 
     if neighborhood == 'eight':
         NEIGHBORHOOD = EIGHT_NEIGHBORHOOD
+    else:
+        NEIGHBORHOOD = FOUR_NEIGHBORHOOD
 
     height, width, _ = z.shape
     smoothness_matrix = dict()
@@ -541,7 +578,7 @@ def visualize_clusters(img_shape, k, alpha, iteration, image_name, showImage=Fal
         plt.show()
 
 
-def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=False):
+def grabcut(img, bbox, image_name, num_iterations=10, num_components=5, get_all_segmentations=False, debug=False, drawImage=False):
     # print np.sum(img)
     # img = img/255.0
     # print np.sum(img)
@@ -549,7 +586,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
     if debug: 
         print 'Initializing gmms'
         tic()
-    alpha, foreground_gmm, background_gmm = initialization(img, bbox)
+    alpha, foreground_gmm, background_gmm = initialization(img, bbox, num_components=num_components)
     k = np.zeros((img.shape[0],img.shape[1]), dtype=int)
     if debug:
         toc('Initializing gmms')
@@ -560,7 +597,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
     # tic()
     # s1 = compute_smoothness(img, debug=False)
     # toc('Computing smoothness matrix normally')
-    smoothness_matrix = compute_smoothness_vectorized(img, debug=False)
+    smoothness_matrix = compute_smoothness_vectorized(img, neighborhood='eight', debug=False)
     
 
     # if len(s1) != len(smoothness_matrix):
@@ -585,6 +622,8 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
     if debug:
         print 'Starting EM'
     
+    segmentations = []
+    segmentations.append(alpha)
     pixels = img.reshape((img.shape[0]*img.shape[1], img.shape[2]))
     for iteration in xrange(1,num_iterations+1):
         if debug:
@@ -611,7 +650,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
             toc('Assigning GMM components')
 
         # # K-means visualization
-        visualize_clusters(img.shape, k, alpha, iteration, image_name)
+        visualize_clusters(img.shape, k, alpha, iteration, image_name, showImage=False)
 
         # 2. Learn GMM parameters
         if debug:
@@ -718,7 +757,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
                 #index = w*img.shape[1] + h
                 # If pixel is outside of bounding box, assign large unary energy
                 # See Jon's lecture notes on GrabCut, slide 11
-                if w <= bbox[0] or w >= bbox[2] or h <= bbox[1] or h >= bbox[3]:
+                if w < bbox[0] or w > bbox[2] or h < bbox[1] or h > bbox[3]:
                     w1 = 1e9
                     w2 = 0
                 else:
@@ -794,6 +833,7 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
         # n = num_changed_pixels
         num_changed_pixels = np.sum(np.abs(partition-alpha))
         alpha = partition
+        segmentations.append(alpha)
 
         if debug:
             toc("Updating alphas")
@@ -822,7 +862,10 @@ def grabcut(img, bbox, image_name, num_iterations=10, debug=False, drawImage=Fal
 
         # print "Relative Energy Change:", relative_change
 
-    return alpha
+    if get_all_segmentations:
+        return segmentations
+    else:
+        return alpha
 
 
 def main():
@@ -844,7 +887,7 @@ def main():
     # big_banana_bbox = [27.887096774193537, 33.048387096774036, 604.66129032258061, 451.11290322580641]
     # bbox = small_banana_bbox
      
-    grabcut(img, bbox, debug=True, drawImage=True)
+    grabcut(img, bbox, args.image_file[0], num_iterations=7, num_components=1, debug=True, drawImage=True)
 
 # TODO:
 # gt : clear namespace
