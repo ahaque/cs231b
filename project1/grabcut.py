@@ -531,7 +531,7 @@ def compute_smoothness(z, neighborhood='eight', debug=False):
 
     return smoothness_matrix
 
-def compute_smoothness_vectorized(z, neighborhood='eight', debug=False):
+def compute_smoothness_vectorized(z, neighborhood='eight', compute_dict=False, debug=False):
     FOUR_NEIGHBORHOOD = [(-1,0), (1,0), (0,-1), (0,1)]
     EIGHT_NEIGHBORHOOD = [(-1,0),(+1,0),(0,-1),(0,+1),(-1,-1),(-1,+1),(+1,+1),(+1,-1)]
 
@@ -570,31 +570,32 @@ def compute_smoothness_vectorized(z, neighborhood='eight', debug=False):
         energies.append(np.exp(-1 * beta * np.sum(np.multiply(ne, ne), axis=2)))
         energies.append(np.exp(-1 * beta * np.sum(np.multiply(se, se), axis=2)))
         energies.append(np.exp(-1 * beta * np.sum(np.multiply(sw, sw), axis=2)))
+    if compute_dict:
+        for h in xrange(height):
+            for w in xrange(width):
+                if (h,w) not in smoothness_matrix:
+                    smoothness_matrix[(h,w)] = dict()
+                for i,(hh,ww) in enumerate(NEIGHBORHOOD):
+                    nh, nw = h + hh, w + ww
+                    if nw < 0 or nw >= width:
+                        continue
+                    if nh < 0 or nh >= height:
+                        continue
 
-    for h in xrange(height):
-        for w in xrange(width):
-            if (h,w) not in smoothness_matrix:
-                smoothness_matrix[(h,w)] = dict()
-            for i,(hh,ww) in enumerate(NEIGHBORHOOD):
-                nh, nw = h + hh, w + ww
-                if nw < 0 or nw >= width:
-                    continue
-                if nh < 0 or nh >= height:
-                    continue
+                    if (nh,nw) not in smoothness_matrix:
+                        smoothness_matrix[(nh,nw)] = dict()
 
-                if (nh,nw) not in smoothness_matrix:
-                    smoothness_matrix[(nh,nw)] = dict()
+                    if (h,w) in smoothness_matrix[(nh,nw)]:
+                        continue
 
-                if (h,w) in smoothness_matrix[(nh,nw)]:
-                    continue
+                    smoothness_matrix[(h,w)][(nh, nw)] = energies[i][h,w]
+                    smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
 
-                smoothness_matrix[(h,w)][(nh, nw)] = energies[i][h,w]
-                smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
+                    if debug:
+                        print (h,w),'->',(nh,nw),":",z[h,w,:], z[nh,nw,:], smoothness_matrix[(h,w)][(nh, nw)]
 
-                if debug:
-                    print (h,w),'->',(nh,nw),":",z[h,w,:], z[nh,nw,:], smoothness_matrix[(h,w)][(nh, nw)]
-
-    return smoothness_matrix
+        return smoothness_matrix, energies
+    return energies
 
 def visualize_clusters(img_shape, k, alpha, iteration, image_name, show_image=False, save_image=True):
     BG_COLORS = [[204,102,0],[255,128,0],[255,153,51],[255,178,102],[255,204,153]]
@@ -620,7 +621,7 @@ def visualize_clusters(img_shape, k, alpha, iteration, image_name, show_image=Fa
         plt.show()
 
 def verify_smoothness_matrix(img):
-    smoothness_matrix1 = compute_smoothness_vectorized(img, neighborhood='eight', debug=False)
+    smoothness_matrix1, _ = compute_smoothness_vectorized(img, neighborhood='eight', compute_dict=True, debug=False)
     smoothness_matrix2 = compute_smoothness(img, neighborhood='eight', debug=False)
 
     if len(s1) != len(smoothness_matrix):
@@ -652,7 +653,7 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
         print 'Computing smoothness matrix...'
         tic()
 
-    smoothness_matrix = compute_smoothness_vectorized(img, neighborhood='eight', debug=False)
+    pairwise_energies = compute_smoothness_vectorized(img, neighborhood='eight', debug=False)
     
     if debug:
         toc('Computing smoothness matrix')
@@ -721,8 +722,8 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
             foreground_energies = get_unary_energy_vectorized(1, foreground_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
             background_energies = get_unary_energy_vectorized(0, background_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
 
-            pairwise_energies = np.zeros(img.shape[0:2], dtype=float)
             done_with = set()
+            # num_edges = 0
             for h in xrange(img.shape[0]):
                 for w in xrange(img.shape[1]):
                     index = h*img.shape[1] + w
@@ -742,18 +743,42 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
                     graph.add_tweights(index, w1, w2)
 
                     # Compute pairwise edge weights
-                    pairwise_energy = 0.0
-                    for (nh, nw) in smoothness_matrix[(h,w)]:
-                        neighbor_index = nh * img.shape[1] + nw
-                        if (index, neighbor_index) in done_with:
-                            continue
-                        edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
-                        graph.add_edge(index, neighbor_index, edge_weight,edge_weight)
-                        done_with.add((index, neighbor_index))
-                        done_with.add((neighbor_index, index))
-                        pairwise_energy += edge_weight
+                    # for (nh, nw) in smoothness_matrix[(h,w)]:
+                    #     neighbor_index = nh * img.shape[1] + nw
+                    #     if (index, neighbor_index) in done_with:
+                    #        continue
+                    #     edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
+                    #     graph.add_edge(index, neighbor_index, edge_weight,edge_weight)
+                    #     done_with.add((index, neighbor_index))
+                    #     done_with.add((neighbor_index, index))
+            # print len(done_with)
 
-                    pairwise_energies[h,w] = pairwise_energy
+            NEIGHBORHOOD = [(-1,0),(+1,0),(0,-1),(0,+1),(-1,-1),(-1,+1),(+1,+1),(+1,-1)]
+            src_h = np.tile(np.arange(img.shape[0]).reshape(img.shape[0], 1), (1, img.shape[1]))
+            src_w = np.tile(np.arange(img.shape[1]).reshape(1, img.shape[1]), (img.shape[0], 1))
+            src_h = src_h.astype(np.int32)
+            src_w = src_w.astype(np.int32)
+
+            for i, energy in enumerate(pairwise_energies):
+                if i in [1,3,6,7]:
+                    continue
+                height_offset, width_offset = NEIGHBORHOOD[i]
+
+                dst_h = src_h + height_offset
+                dst_w = src_w + width_offset
+
+                idx = np.logical_and(np.logical_and(dst_h >= 0, dst_h < img.shape[0]),
+                                    np.logical_and(dst_w >= 0, dst_w < img.shape[1]))
+
+                src_idx = src_h * img.shape[1] + src_w
+                dst_idx = dst_h * img.shape[1] + dst_w
+
+                src_idx = src_idx[idx].flatten()
+                dst_idx = dst_idx[idx].flatten()
+                weights = energy.astype(np.float32)[idx].flatten()
+                weights = gamma*weights
+
+                graph.add_edge_vectorized(src_idx, dst_idx, weights, weights)
 
             if debug:
                 toc("Creating graph")
