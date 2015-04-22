@@ -9,6 +9,7 @@ import threading
 import Queue
 import subprocess
 import atexit
+import argparse
 
 #################################################################
 # BEGIN REQUIRED INPUT PARAMETERS
@@ -30,6 +31,22 @@ LOG_FILENAME = "ml.log"
 
 # END REQUIRED INPUT PARAMETERS
 #################################################################
+
+def get_args():
+    parser = argparse.ArgumentParser(
+        description='Evaluation code for the Grabcut algorithm. \
+                    \nUses the corn cluster to process all images in parallel. \
+                    Uses a single corn machine per image. For this to work, you \
+                    need to have ssh kerberos forwarding so that the login is \
+                    automatic. It is also recommended to add all corn machines \
+                    to your trusted hosts to avoid issues.')
+    parser.add_argument('image_file', default = None, nargs='?',
+        help='Input image name (without extension or path) if you want to process a single image only')
+    parser.add_argument('-u', '--sunetID', default = 'fdalvi',
+        help='SUNETID to logon to the corn servers')
+
+    return parser.parse_args()
+
 procs_list = dict()
 
 @atexit.register
@@ -48,7 +65,7 @@ def computeAccuracy(segmentation, ground_truth):
     num_correct_background = np.sum(np.logical_and(ground_truth == 0, segmentation == 0))
     return 100 * (num_correct_background + num_correct_foreground) / num_pixels
 
-def processImage(q, machine, image_name):
+def processImage(q, machine, image_name, userid):
     start_time = time.time()
     server = "fdalvi@%s.stanford.edu"%machine
     command = "cd private/cs231b/project1/;python ml.py " + image_name
@@ -61,7 +78,7 @@ def processImage(q, machine, image_name):
         # sys.stdout.flush()
         machine = "corn%02d"%(int(machine[4:])+1)
         
-        server = "fdalvi@%s.stanford.edu"%machine
+        server = "%s@%s.stanford.edu"%(userid, machine)
         # sys.stdout.write('Trying %s\n'%server)
         # sys.stdout.flush()
         process = subprocess.Popen(["ssh","-t", server,command], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -82,15 +99,16 @@ def main():
     all_accuracies = []
     all_jaccards = []
 
-    if len(sys.argv) == 2:
-        image_names = [sys.argv[1]]
+    args = get_args()
+    if args.image_file != None:
+        image_names = [args.image_file]
 
     q = Queue.Queue()
     thread_list = []
     # Loop through all images
     for tid, image_name in enumerate(image_names):
         server = "corn%02d"%(tid+5) 
-        thread = threading.Thread(name=image_name,target=processImage, args=(q, server, image_name))
+        thread = threading.Thread(name=image_name,target=processImage, args=(q, server, image_name, args.sunetID))
         thread_list.append(thread)
         thread.start()
 
