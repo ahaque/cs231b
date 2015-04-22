@@ -2,6 +2,10 @@ import numpy as np
 import os
 import sys
 
+if len(sys.argv) != 2:
+    print 'Usage: python experiments/combine_experiment <directory>'
+    sys.exit()
+
 DIR = sys.argv[1] + '/'
 filenames = os.listdir(DIR)
 accuracy = None
