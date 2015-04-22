@@ -17,16 +17,17 @@ import sys
 
 # Global constants
 gamma = 50
-SOURCE = -1
-SINK = -2
 
-# tic-toc
-start_time = 0
+
 
 # If energy changes less than CONVERGENCE_CRITERIA percent from the last iteration
 # we will terminate
 CONVERGENCE_CRITERON = 0.02
 
+################################################################################
+############################## TIMING CONSTRUCTS ###############################
+################################################################################
+start_time = 0
 def tic():
     global start_time
     start_time = time.time()
@@ -34,7 +35,9 @@ def toc(task_label):
     global start_time
     print "%s took %0.4f s"%(task_label, time.time() - start_time)
 
-
+################################################################################
+############################ GENERAL I/O FUNCTIONS #############################
+################################################################################
 # get_args function
 # Intializes the arguments parser and reads in the arguments from the command
 # line.
@@ -70,6 +73,9 @@ def load_image(img_name):
     print 'Reading %s...' % img_name
     return plt.imread(img_name)
 
+################################################################################
+################################ UI FUNCTIONS  #################################
+################################################################################
 # RectSelector class
 # Enables prompting user to select a rectangular area on a given image
 class RectSelector:
@@ -148,6 +154,9 @@ class RectSelector:
             self.ax.add_patch(selected_rectangle)
             self.canvas.draw()
 
+# PolyLineSelector class
+# Enables prompting user to select a series of points to indicate background
+# in a semi-segmented image
 class PolylineSelector:
     def __init__(self, ax, image):
         self.image_height = image.shape[0]
@@ -164,8 +173,6 @@ class PolylineSelector:
         # pget the x and y pixel coords
         if self.button_pressed == True:
             x, y = event.xdata, event.ydata
-
-            # y = self.image_width - y
 
             if event.inaxes:
                 ax = event.inaxes  # the axes instance
@@ -188,6 +195,8 @@ class PolylineSelector:
     def on_release(self, event):
         self.button_pressed = False
 
+# get_user_polyline
+# Returns points drawn by a user on the image given as argument
 def get_user_polyline(img):
     if img.shape[2] != 3:
         print 'This image does not have all the RGB channels, you do not need to work on it.'
@@ -202,6 +211,8 @@ def get_user_polyline(img):
 
     return selector.points
 
+# get_user_selection
+# Returns coordinates of the bounding box the user draws on the given image
 def get_user_selection(img):
     if img.shape[2] != 3:
         print 'This image does not have all the RGB channels, you do not need to work on it.'
@@ -220,6 +231,11 @@ def get_user_selection(img):
     # Return the selected rectangle
     return selector.rectangle
 
+################################################################################
+########################## GRABCUT HELPER FUNCTIONS  ###########################
+################################################################################
+# Given an image and bounding box, initializes a foreground and a background 
+# GMM. The number of components can optionally be passed in.
 def initialization(img, bbox, num_components=5, debug=False):
     xmin, ymin, xmax, ymax = bbox
     height, width, _ = img.shape
@@ -234,7 +250,6 @@ def initialization(img, bbox, num_components=5, debug=False):
     foreground_gmm = GMM(num_components)
     background_gmm = GMM(num_components)
 
-    # print img.shape[0]*img.shape[1], np.sum(alpha==1)+np.sum(alpha==0)
     fg_clusters = foreground_gmm.initialize_gmm(img[alpha==1])
     bg_clusters = background_gmm.initialize_gmm(img[alpha==0])
 
@@ -253,7 +268,8 @@ def initialization(img, bbox, num_components=5, debug=False):
 
     return alpha, foreground_gmm, background_gmm
 
-# Currently creates a meaningless graph
+# Given an image, computes the total number of nodes and edges required, and 
+# returns a constructed graph object
 def create_graph(img):
     num_neighbors = 8
 
@@ -267,67 +283,26 @@ def create_graph(img):
 
     return g
 
-# alpha,k - specific values
-def get_pi(alpha, k, gmms):
-    return gmms[alpha].weights[k]
-
-def get_cov_det(alpha, k, gmms):
-    return gmms[alpha].gaussians[k].sigma_det
-
-def get_mean(alpha, k, gmms):
-    return gmms[alpha].gaussians[k].mean
-
-def get_cov_inv(alpha, k, gmms):
-    return gmms[alpha].gaussians[k].sigma_inv
-
-# Its not log_prob but we are calling it that for convinience
-def get_log_prob(alpha, k, gmms, z_pixel):
-    term = (z_pixel - get_mean(alpha, k, gmms))
-    return 0.5 * np.dot(np.dot(term.T, get_cov_inv(alpha, k, gmms)), term)
-
-def get_energy(alpha, k, gmms, z, smoothness_matrix):
-    # Compute U
-    U = 0
-    for h in xrange(z.shape[0]):
-        for w in xrange(z.shape[1]):
-            U += -np.log(get_pi(alpha[h,w], k[h,w], gmms)) \
-                + 0.5 * np.log(get_cov_det(alpha[h,w], k[h,w], gmms)) \
-                + get_log_prob(alpha[h,w], k[h,w], gmms, z[h,w,:])
-
-    # Compute V
-    V = 0
-    for h in xrange(z.shape[0]):
-        for w in xrange(z.shape[1]):
-            # Loop through neighbors
-            for (nh, nw) in smoothness_matrix[(h,w)].keys():
-                if alpha[h,w] != alpha[nh,nw]:
-                    V += smoothness_matrix[(h,w)][(nh, nw)]
-    V = gamma * V
-
-    return U + V
-
+# Given a gmm and a list of pixels, computes the -log(prob) of each pixel belonging
+# to the given GMM. This method does not consider which component was assigned
+# to the pixel
+# 
+# Currently unused in the implementation.
 def get_total_unary_energy_vectorized(gmm, pixels, debug=False):
     # print k
     prob = 0.0
     for COMP in xrange(5):
         k = np.ones((pixels.shape[0],), dtype=int)*COMP
         pi_base = gmm.weights
-        # pi = pi_base[k].reshape(pixels.shape[0])
 
         dets_base = np.array([gmm.gaussians[i].sigma_det for i in xrange(len(gmm.gaussians))])
-        #dets = np.power(np.sqrt(dets_base[k].reshape(pixels.shape[0])), -1)
         dets = dets_base[k]
 
         means_base = np.array([gmm.gaussians[i].mean for i in xrange(len(gmm.gaussians))])
-        # print pixels.shape, k.shape, means_base.shape,means_base[k].shape
         means = means_base[k]
-        # means = np.swapaxes(means_base[k], 1, 2)
-        # means = means.reshape((means.shape[0:2]))
 
         cov_base = np.array([gmm.gaussians[i].sigma_inv for i in xrange(len(gmm.gaussians))])
         cov = cov_base[k]
-        # cov = np.swapaxes(cov_base[k], 1, 3)
-        # cov = cov.reshape((cov.shape[0:3]))
 
         term = pixels - means
 
@@ -346,30 +321,20 @@ def get_total_unary_energy_vectorized(gmm, pixels, debug=False):
         prob += pi_base[COMP] * np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)
     return -np.log(prob)
 
-    # -log(coefs[ci] * (*this)(ci, color ))
-    # pi_base[0] * np.divide(np.exp(-0.5*log_prob),((2*np.pi)**3)*dets)
-
-    # return -np.log(pi) \
-    #     + 3 * 0.5 * np.log(2*pi) \
-    #     + 0.5 * np.log(dets) \
-    #     + 0.5 * log_prob
-
-    return -np.log(pi) \
-        + 0.5 * np.log(dets) \
-        + 0.5 * log_prob
-
-    # return -np.log(pi) \
-    #     + np.sqrt(((2*np.pi)**3) * np.log(dets)) \
-    #     + 0.5 * log_prob
-
+# Given a list of pixels and a gmm (gmms contains both the foreground and the
+# background GMM, but alpha helps us pick the correct one), returns the -log(prob)
+# of each belonging to the component specified by k.
+# 
+# alpha - integer specifying background or foreground
+# k - array with each element corresponding to which component the
+#   corresponding pixel in the pixels array belongs to
+# pixels - array of pixels
 def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
-    # print k
     pi_base = gmms[alpha].weights
     pi = pi_base[k].reshape(pixels.shape[0])
     pi[pi==0] = 1e-15
 
     dets_base = np.array([gmms[alpha].gaussians[i].sigma_det for i in xrange(len(gmms[alpha].gaussians))])
-    #dets = np.power(np.sqrt(dets_base[k].reshape(pixels.shape[0])), -1)
     dets = dets_base[k].reshape(pixels.shape[0])
     dets[dets==0] = 1e-15
 
@@ -386,6 +351,7 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
                               np.sum(np.multiply(term, cov[:, :, 1]),axis=1),
                               np.sum(np.multiply(term, cov[:, :, 2]),axis=1)]).T
 
+    # Not really the log_prob, but a part of it
     log_prob = np.sum(np.multiply(middle_matrix, term), axis=1)
 
     if debug:
@@ -397,63 +363,8 @@ def get_unary_energy_vectorized(alpha, k, gmms, pixels, debug=False):
         + 0.5 * np.log(dets) \
         + 0.5 * log_prob
 
-def get_unary_energy(alpha, k, gmms, z, pixel):
-    h,w = pixel
-    return -np.log(get_pi(alpha, k[h,w], gmms)) \
-            + 0.5 * np.log(get_cov_det(alpha, k[h,w], gmms)) \
-            + get_log_prob(alpha, k[h,w], gmms, z[h,w,:])
-
-def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
-    (h,w) = pixel_1
-    (nh,nw) = pixel_2
-    V = smoothness_matrix[(h,w)][(nh, nw)]
-
-    return gamma*V
-
-def compute_gamma(z, img_name, debug=False, save_fig=False):
-    R,G,B = z[:,:,0],z[:,:,1],z[:,:,2]
-    img = z.copy()
-    matplotlib.colors.rgb_to_hsv(img)
-
-    H = img[:,:,0].flatten()
-    H = H[np.random.randint(H.shape[0],size=100000)]
-
-    probs = np.zeros((256))
-    for i in xrange(256):
-        probs[i] = np.sum(H==i)
-    
-    probs = probs[probs != 0]
-    entropy = -np.sum(np.multiply(probs, np.log2(probs)))
-    print "%s: %0.2f"%(img_name, entropy/10000)
-
-    if savefig:
-        plt.figure()
-        plt.hist(H, 256, range=(0.0,255.0), color='k', edgecolor='k')
-        plt.xlabel("%s: %0.2f"%(img_name, entropy/10000))
-        plt.savefig('hists/' + img_name +'-h.eps', bbox_inches='tight')
-        plt.close()
-
-def compute_beta(z, debug=False):
-    accumulator = 0
-    m = z.shape[0]
-    n = z.shape[1]
-
-    for h in xrange(m-1):
-        if debug: print 'Computing row', h
-        for w in xrange(n):
-            accumulator += np.linalg.norm(z[h,w,:] - z[h+1,w,:])**2
-
-    for h in xrange(m):
-        if debug: print 'Computing row', h
-        for w in xrange(n-1):
-            accumulator += np.linalg.norm(z[h,w,:] - z[h,w+1,:])**2
-
-    num_comparisons = float(2*(m*n) - m - n)
-
-    beta = (2*(accumulator/num_comparisons))**-1
-
-    return beta
-
+# Given an image (z), computes the expected difference between neighboring 
+# pixels, and returns the corresponding beta value.
 def compute_beta_vectorized(z, debug=False):
     accumulator = 0
     m = z.shape[0]
@@ -473,53 +384,17 @@ def compute_beta_vectorized(z, debug=False):
         print num_comparisons
     beta = 1.0/(2*(accumulator/num_comparisons))
 
-    return beta      
+    return beta
 
-def compute_smoothness(z, neighborhood='eight', debug=False):
-    EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
-    FOUR_NEIGHBORHOOD = [(-1,0), (0,-1), (0,1), (1,0)]
-
-    if neighborhood == 'eight':
-        NEIGHBORHOOD = EIGHT_NEIGHBORHOOD
-    else:
-        NEIGHBORHOOD = FOUR_NEIGHBORHOOD
-
-    height, width, _ = z.shape
-    global beta
-    smoothness_matrix = dict()
-
-    beta = compute_beta_vectorized(z)
-    if debug:
-        print 'beta',beta
-
-    for h in xrange(height):
-        if debug:
-            print 'Computing row',h
-        for w in xrange(width):
-            if (h,w) not in smoothness_matrix:
-                smoothness_matrix[(h,w)] = dict()
-            for hh,ww in NEIGHBORHOOD:
-                nh, nw = h + hh, w + ww
-                if nw < 0 or nw >= width:
-                    continue
-                if nh < 0 or nh >= height:
-                    continue
-
-                if (nh,nw) not in smoothness_matrix:
-                    smoothness_matrix[(nh,nw)] = dict()
-
-                if (h,w) in smoothness_matrix[(nh,nw)]:
-                    continue
-
-                smoothness_matrix[(h,w)][(nh, nw)] = \
-                    np.exp(-1 * beta * (np.linalg.norm(z[h,w,:] - z[nh,nw,:])**2))
-                smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
-
-                if debug:
-                    print (h,w),'->',(nh,nw),":",z[h,w,:], z[nh,nw,:], smoothness_matrix[(h,w)][(nh, nw)]
-
-    return smoothness_matrix
-
+# Given an image, and an optional neighborhood parameter, computes all the 
+# pairwise weights between neigboring pixels
+# 
+# z - matrix of image pixels
+# neighborhood - 'eight' for 8 neighborhood, 'four' for 4 neighborhood
+# compute_dict - Computes a dictionary from 'pixel' to another dict that maps 
+#   'pixels' to pairwise energy. Hence we will have elements like:
+#   dict[(5,6)] = dict[(4,6) -> 1.2, (6,6) -> 0.6, ...]. Only used to compare
+#   to unvectorized version of compute_smoothness
 def compute_smoothness_vectorized(z, neighborhood='eight', compute_dict=False, debug=False):
     FOUR_NEIGHBORHOOD = [(-1,0), (1,0), (0,-1), (0,1)]
     EIGHT_NEIGHBORHOOD = [(-1,0),(+1,0),(0,-1),(0,+1),(-1,-1),(-1,+1),(+1,+1),(+1,-1)]
@@ -586,6 +461,21 @@ def compute_smoothness_vectorized(z, neighborhood='eight', compute_dict=False, d
         return smoothness_matrix, energies
     return energies
 
+
+################################################################################
+############################## DEBUGGING HELPERS ###############################
+################################################################################
+
+# Given an alpha and component map for each pixel, visualizes all the 
+# components appropriately. All the background clusters are mapped in shades of 
+# orange, and foregorund clusters are mapped in shades of blue.
+# 
+# img_shape - image dimnesions
+# k - matrix of components maps representing which component each pixel belongs
+#   to
+# alpha - matrix of alpha map, representing if an pixel if fg or bg
+# iteration - iteration number for logging purposes
+# image_name - image name for logging purposes
 def visualize_clusters(img_shape, k, alpha, iteration, image_name, show_image=False, save_image=True):
     BG_COLORS = [[204,102,0],[255,128,0],[255,153,51],[255,178,102],[255,204,153]]
     FG_COLORS = [[0,0,255],[0,0,200], [0,0,150], [0,0,100], [0,0,50]]
@@ -609,24 +499,45 @@ def visualize_clusters(img_shape, k, alpha, iteration, image_name, show_image=Fa
         plt.imshow(res)
         plt.show()
 
-def verify_smoothness_matrix(img):
-    smoothness_matrix1, _ = compute_smoothness_vectorized(img, neighborhood='eight', compute_dict=True, debug=False)
-    smoothness_matrix2 = compute_smoothness(img, neighborhood='eight', debug=False)
+# Computes gamma based on entropy of the spectral histogram of the given
+# image.
+# 
+# z - image pixels
+# img_name - name for logging purposes
+def compute_gamma(z, img_name, debug=False, save_fig=False):
+    R,G,B = z[:,:,0],z[:,:,1],z[:,:,2]
+    img = z.copy()
+    matplotlib.colors.rgb_to_hsv(img)
 
-    if len(s1) != len(smoothness_matrix):
-        print 'PROBLEM lens not equal'
-        return False
-    for (h,w) in s1:
-        if len(s1[(h,w)]) != len(smoothness_matrix[(h,w)]):
-            print 'PROBLEM lens not equal at',(h,w)
-            return False
-        for (nh,nw) in s1[(h,w)]:
-            if abs(s1[(h,w)][(nh,nw)] - smoothness_matrix[(h,w)][(nh,nw)]) > 1e-12:
-                print 'PROBLEM at',(h,w),(nh,nw),'->',s1[(h,w)][(nh,nw)],'!=',smoothness_matrix[(h,w)][(nh,nw)]
-                return False
-    print 'Finished check'
-    return True
+    H = img[:,:,0].flatten()
+    H = H[np.random.randint(H.shape[0],size=100000)]
 
+    probs = np.zeros((256))
+    for i in xrange(256):
+        probs[i] = np.sum(H==i)
+    
+    probs = probs[probs != 0]
+    entropy = -np.sum(np.multiply(probs, np.log2(probs)))
+    print "%s: %0.2f"%(img_name, entropy/10000)
+
+    if savefig:
+        plt.figure()
+        plt.hist(H, 256, range=(0.0,255.0), color='k', edgecolor='k')
+        plt.xlabel("%s: %0.2f"%(img_name, entropy/10000))
+        plt.savefig('hists/' + img_name +'-h.eps', bbox_inches='tight')
+        plt.close()
+
+# Grabcut loop
+# This function contains the actual implementation of the entire grabcut
+# algorithm
+# 
+# img - image to perform segmentation on
+# image_name - image name for logging purposes
+# user_interaction - boolean specifing if user interaction should be enabled
+# num_iterations - number of iterations to run grabcut for
+# num_components - number of components to inititalize the fg/bg GMM with
+# get_all_segmentations - Stores and returns the intermediate segmentation from 
+#   each iteration for experimental purposes
 def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10, 
     num_components=5, get_all_segmentations=False, debug=False, drawImage=False,
     visualize_clusters=False):
@@ -646,13 +557,7 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
     
     if debug:
         toc('Computing smoothness matrix')
-
-    global SOURCE
-    global SINK
     
-    FOREGROUND = 1
-    BACKGROUND = 0
-    previous_energy = sys.float_info.max
     if debug:
         print 'Starting EM'
     
@@ -701,7 +606,6 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
                 toc('Updating GMM parameters')
 
             # 3. Estimate segmentation using min cut
-            # Update weights
             # Compute Unary weights
             if debug:
                 tic()
@@ -712,7 +616,6 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
             background_energies = get_unary_energy_vectorized(0, background_components.reshape((img.shape[0]*img.shape[1], 1)), theta, pixels)
 
             done_with = set()
-            # num_edges = 0
             for h in xrange(img.shape[0]):
                 for w in xrange(img.shape[1]):
                     index = h*img.shape[1] + w
@@ -731,17 +634,7 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
 
                     graph.add_tweights(index, w1, w2)
 
-                    # Compute pairwise edge weights
-                    # for (nh, nw) in smoothness_matrix[(h,w)]:
-                    #     neighbor_index = nh * img.shape[1] + nw
-                    #     if (index, neighbor_index) in done_with:
-                    #        continue
-                    #     edge_weight = get_pairwise_energy(alpha, (h,w), (nh,nw), smoothness_matrix)
-                    #     graph.add_edge(index, neighbor_index, edge_weight,edge_weight)
-                    #     done_with.add((index, neighbor_index))
-                    #     done_with.add((neighbor_index, index))
-            # print len(done_with)
-
+            # Compute pairwise weights
             NEIGHBORHOOD = [(-1,0),(+1,0),(0,-1),(0,+1),(-1,-1),(-1,+1),(+1,+1),(+1,-1)]
             src_h = np.tile(np.arange(img.shape[0]).reshape(img.shape[0], 1), (1, img.shape[1]))
             src_w = np.tile(np.arange(img.shape[1]).reshape(1, img.shape[1]), (img.shape[0], 1))
@@ -804,11 +697,7 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
             if debug:
                 print 'Relative change was %f'%relative_change
 
-            if relative_change < CONVERGENCE_CRITERON:
-                if debug:
-                    print "EM has converged. Terminating."
-
-        # Prompt for user interaction
+        # Prompt for user interaction if enabled
         if user_interaction:
             user_img = img.copy()
             user_img[alpha == 0] = 0
@@ -854,5 +743,176 @@ def main():
         num_components=args.num_components, user_interaction=args.user_interaction, 
         debug=True, drawImage=True)
 
+################################################################################
+######################## UNVECTORIZED GRABCUT HELPERS ##########################
+############################### NOT USED IN CODE ###############################
+################################################################################
+
+# Helper function for computing pairwise energies
+# Returns the weight of each component in the given GMM
+def get_pi(alpha, k, gmms):
+    return gmms[alpha].weights[k]
+
+# Helper function for computing pairwise energies
+# Returns the determinant of the covariance matrix of the given GMM
+def get_cov_det(alpha, k, gmms):
+    return gmms[alpha].gaussians[k].sigma_det
+
+# Helper function for computing pairwise energies
+# Returns the mean of the given GMM
+def get_mean(alpha, k, gmms):
+    return gmms[alpha].gaussians[k].mean
+
+# Helper function for computing pairwise energies
+# Returns the inverse of the covariance matrix of the given GMM
+def get_cov_inv(alpha, k, gmms):
+    return gmms[alpha].gaussians[k].sigma_inv
+
+# Helper function for computing pairwise energies
+# Its not log_prob but we are calling it that for convinience
+# Computes part of the probabilty of the pixel belonging to a specific component
+# of the given GMM
+def get_log_prob(alpha, k, gmms, z_pixel):
+    term = (z_pixel - get_mean(alpha, k, gmms))
+    return 0.5 * np.dot(np.dot(term.T, get_cov_inv(alpha, k, gmms)), term)
+
+# Given an image (z), computes the expected difference between neighboring 
+# pixels, and returns the corresponding beta value.
+def compute_beta(z, debug=False):
+    accumulator = 0
+    m = z.shape[0]
+    n = z.shape[1]
+
+    for h in xrange(m-1):
+        if debug: print 'Computing row', h
+        for w in xrange(n):
+            accumulator += np.linalg.norm(z[h,w,:] - z[h+1,w,:])**2
+
+    for h in xrange(m):
+        if debug: print 'Computing row', h
+        for w in xrange(n-1):
+            accumulator += np.linalg.norm(z[h,w,:] - z[h,w+1,:])**2
+
+    num_comparisons = float(2*(m*n) - m - n)
+
+    beta = (2*(accumulator/num_comparisons))**-1
+
+    return beta
+
+# Given an image, and an optional neighborhood parameter, computes all the 
+# pairwise weights between neigboring pixels
+# 
+# z - matrix of image pixels
+# neighborhood - 'eight' for 8 neighborhood, 'four' for 4 neighborhood
+def compute_smoothness(z, neighborhood='eight', debug=False):
+    EIGHT_NEIGHBORHOOD = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
+    FOUR_NEIGHBORHOOD = [(-1,0), (0,-1), (0,1), (1,0)]
+
+    if neighborhood == 'eight':
+        NEIGHBORHOOD = EIGHT_NEIGHBORHOOD
+    else:
+        NEIGHBORHOOD = FOUR_NEIGHBORHOOD
+
+    height, width, _ = z.shape
+    global beta
+    smoothness_matrix = dict()
+
+    beta = compute_beta_vectorized(z)
+    if debug:
+        print 'beta',beta
+
+    for h in xrange(height):
+        if debug:
+            print 'Computing row',h
+        for w in xrange(width):
+            if (h,w) not in smoothness_matrix:
+                smoothness_matrix[(h,w)] = dict()
+            for hh,ww in NEIGHBORHOOD:
+                nh, nw = h + hh, w + ww
+                if nw < 0 or nw >= width:
+                    continue
+                if nh < 0 or nh >= height:
+                    continue
+
+                if (nh,nw) not in smoothness_matrix:
+                    smoothness_matrix[(nh,nw)] = dict()
+
+                if (h,w) in smoothness_matrix[(nh,nw)]:
+                    continue
+
+                smoothness_matrix[(h,w)][(nh, nw)] = \
+                    np.exp(-1 * beta * (np.linalg.norm(z[h,w,:] - z[nh,nw,:])**2))
+                smoothness_matrix[(nh,nw)][(h,w)] = smoothness_matrix[(h,w)][(nh, nw)]
+
+                if debug:
+                    print (h,w),'->',(nh,nw),":",z[h,w,:], z[nh,nw,:], smoothness_matrix[(h,w)][(nh, nw)]
+
+    return smoothness_matrix
+
+# Given an alpha map, a components map, the GMMS and the image, computes the
+# total energy on the image
+# 
+# Currently not used in code
+def get_energy(alpha, k, gmms, z, smoothness_matrix):
+    # Compute U
+    U = 0
+    for h in xrange(z.shape[0]):
+        for w in xrange(z.shape[1]):
+            U += -np.log(get_pi(alpha[h,w], k[h,w], gmms)) \
+                + 0.5 * np.log(get_cov_det(alpha[h,w], k[h,w], gmms)) \
+                + get_log_prob(alpha[h,w], k[h,w], gmms, z[h,w,:])
+
+    # Compute V
+    V = 0
+    for h in xrange(z.shape[0]):
+        for w in xrange(z.shape[1]):
+            # Loop through neighbors
+            for (nh, nw) in smoothness_matrix[(h,w)].keys():
+                if alpha[h,w] != alpha[nh,nw]:
+                    V += smoothness_matrix[(h,w)][(nh, nw)]
+    V = gamma * V
+
+    return U + V
+
+# Computes the unary energy for a given pixel and GMM
+# 
+# Currently not used in code
+def get_unary_energy(alpha, k, gmms, z, pixel):
+    h,w = pixel
+    return -np.log(get_pi(alpha, k[h,w], gmms)) \
+            + 0.5 * np.log(get_cov_det(alpha, k[h,w], gmms)) \
+            + get_log_prob(alpha, k[h,w], gmms, z[h,w,:])
+
+# Computes the pairwise energy for two given pixels
+# 
+# Currently not used in code
+def get_pairwise_energy(alpha, pixel_1, pixel_2, smoothness_matrix):
+    (h,w) = pixel_1
+    (nh,nw) = pixel_2
+    V = smoothness_matrix[(h,w)][(nh, nw)]
+
+    return gamma*V
+
+# Computes the pairwise energies using the vectorized code, the unvectorized
+# code and compares them to make sure both return the same result
+def verify_smoothness_matrix(img):
+    smoothness_matrix1, _ = compute_smoothness_vectorized(img, neighborhood='eight', compute_dict=True, debug=False)
+    smoothness_matrix2 = compute_smoothness(img, neighborhood='eight', debug=False)
+
+    if len(s1) != len(smoothness_matrix):
+        print 'PROBLEM lens not equal'
+        return False
+    for (h,w) in s1:
+        if len(s1[(h,w)]) != len(smoothness_matrix[(h,w)]):
+            print 'PROBLEM lens not equal at',(h,w)
+            return False
+        for (nh,nw) in s1[(h,w)]:
+            if abs(s1[(h,w)][(nh,nw)] - smoothness_matrix[(h,w)][(nh,nw)]) > 1e-12:
+                print 'PROBLEM at',(h,w),(nh,nw),'->',s1[(h,w)][(nh,nw)],'!=',smoothness_matrix[(h,w)][(nh,nw)]
+                return False
+    print 'Finished check'
+    return True
+
 if __name__ == '__main__':
     main()
+
