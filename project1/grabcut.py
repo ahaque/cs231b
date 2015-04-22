@@ -681,6 +681,7 @@ def grabcut(img, bbox, image_name, user_interaction=False, num_iterations=10,
             partition = partition.reshape(alpha.shape)
             num_changed_pixels = np.sum(np.abs(partition-alpha))
             alpha = partition
+            segmentations.append(alpha)
 
             if debug:
                 toc("Updating alphas")
