@@ -108,6 +108,8 @@ def processImage(q, machine, image_name, userid):
     del procs_list[image_name]
 
 def main():
+    args = get_args()
+    
     # Get image names
     filenames = os.listdir(DATA_DIR)
     image_names = [f.replace(DATA_EXT, '') for f in filenames]
@@ -115,7 +117,6 @@ def main():
     all_accuracies = []
     all_jaccards = []
 
-    args = get_args()
     if args.image_file != None:
         image_names = [args.image_file]
 

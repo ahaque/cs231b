@@ -65,6 +65,7 @@ def computeAccuracy(segmentation, ground_truth):
 
 def main():
     SAVE_IMAGES = True
+    args = get_args()
 
     # Get image names
     filenames = os.listdir(DATA_DIR)
@@ -72,7 +73,6 @@ def main():
 
     all_accuracies = []
     all_jaccards = []
-    args = get_args()
     if args.image_file != None:
         image_names = [args.image_file]
 
