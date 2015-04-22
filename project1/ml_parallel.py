@@ -33,6 +33,9 @@ NUM_PROCS = multiprocessing.cpu_count()
 # END REQUIRED INPUT PARAMETERS
 #################################################################
 def get_args():
+    global BBOX_DIR
+    global DATA_DIR
+    global SEG_DIR
     parser = argparse.ArgumentParser(
         description='Evaluation code for the Grabcut algorithm. \
                     \nUses all the cores on the machine and processes images \
@@ -40,7 +43,19 @@ def get_args():
     parser.add_argument('image_file', default = None, nargs='?',
         help='Input image name (without extension or path) if you want to process a single image only')
 
-    return parser.parse_args()
+    parser.add_argument('-b', '--bboxes', default = BBOX_DIR,
+        help='Directory containing bounding boxes')
+    parser.add_argument('-d', '--data', default = DATA_DIR,
+        help='Directory containing images')
+    parser.add_argument('-s', '--segmentations', default = SEG_DIR,
+        help='Directory containing segmentations')
+
+    args = parser.parse_args()
+    BBOX_DIR = args.bboxes + '/'
+    DATA_DIR = args.data + '/'
+    SEG_DIR = args.segmentations + '/'
+
+    return args
 
 def computeJaccard(segmentation, ground_truth):
     intersection = np.sum(np.logical_and(ground_truth > 0, segmentation > 0))

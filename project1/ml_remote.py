@@ -33,19 +33,35 @@ LOG_FILENAME = "ml.log"
 #################################################################
 
 def get_args():
+    global BBOX_DIR
+    global DATA_DIR
+    global SEG_DIR
     parser = argparse.ArgumentParser(
         description='Evaluation code for the Grabcut algorithm. \
                     \nUses the corn cluster to process all images in parallel. \
                     Uses a single corn machine per image. For this to work, you \
                     need to have ssh kerberos forwarding so that the login is \
                     automatic. It is also recommended to add all corn machines \
-                    to your trusted hosts to avoid issues.')
+                    to your trusted hosts to avoid issues. Also make sure the code \
+                    is present on the afs under private/cs231b/project1/')
     parser.add_argument('image_file', default = None, nargs='?',
         help='Input image name (without extension or path) if you want to process a single image only')
     parser.add_argument('-u', '--sunetID', default = 'fdalvi',
         help='SUNETID to logon to the corn servers')
 
-    return parser.parse_args()
+    parser.add_argument('-b', '--bboxes', default = BBOX_DIR,
+        help='Directory containing bounding boxes')
+    parser.add_argument('-d', '--data', default = DATA_DIR,
+        help='Directory containing images')
+    parser.add_argument('-s', '--segmentations', default = SEG_DIR,
+        help='Directory containing segmentations')
+
+    args = parser.parse_args()
+    BBOX_DIR = args.bboxes + '/'
+    DATA_DIR = args.data + '/'
+    SEG_DIR = args.segmentations + '/'
+
+    return args
 
 procs_list = dict()
 
