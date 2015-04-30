@@ -1,0 +1,20 @@
+TLD 1.0 (Predator)
+----------------------------------------------------------------------------
+
+TLD is an algorithm for tracking of unknown objects in unconstrained video streams.
+The object of interest is defined by a bounding box in a single frame. TLD simultaneously tracks the object, learns its appearance and detects it whenever it appears in the video.
+
+1. License: GPL 
+
+@article{Kalal2012,
+ author = {Kalal, Z and Mikolajczyk, K and Matas, J},
+ journal = {Pattern Analysis and Machine Intelligence},
+ title {Tracking-learning-detection},
+ year = {2012}
+}
+
+NOTE: This is a variant of the original TLD code provided by the authors.
+
+----------------------------------------------------------------------------
+
+(c) 2011 Zdenek Kalal
