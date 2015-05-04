@@ -28,8 +28,8 @@ end
 if ismac
     disp('Mac');
     
-    include = ' -I/opt/local/include/opencv/ -I/opt/local/include/'; 
-    libpath = '/opt/local/lib/'; 
+    include = ' -I/usr/local/include/opencv/ -I/usr/local/include/'; 
+    libpath = '/usr/local/lib/'; 
     
     files = dir([libpath 'libopencv*.dylib']);
     

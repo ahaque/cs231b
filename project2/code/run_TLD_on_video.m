@@ -55,7 +55,7 @@ opt.n_par           = struct('overlap',0.2,'num_patches',100); % negative exampl
 %%       if the feature is simply a resized version of the patch, then
 %%       feature dimension would be prod(opt.patchsize). But, try other features
 %%       for better performance.
-opt.pattern_size = 2;
+opt.pattern_size = prod(patchsize);
 %% ------------------- END ---------------------
 
 % Do not change ---------

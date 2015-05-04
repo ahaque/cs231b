@@ -67,17 +67,24 @@ overlap     = bb_overlap(tld.source.bb,tld.grid); % bottleneck
 tld.target = img_patch(tld.img{1}.input,tld.bb(:,1));
 
 % Generate Positive Examples
-[pEx,bbP] = tldGeneratePositiveData(tld,overlap,tld.img{1},tld.p_par_init);
+[pEx,bbP, patches] = tldGeneratePositiveData(tld,overlap,tld.img{1},tld.p_par_init);
 
+size(pEx)
+size(bbP)
+size(patches)
 
 % Correct initial bbox
 [~, mxo] = max(overlap);
 tld.bb(:,1) = tld.grid(1:4, mxo);
 
 % Variance threshold
-if ~isempty(pEx)
-  tld.var = var(pEx(:,1))/2;
-end
+% Probably wrong, need to compute variance on image patch, rather than
+% feature
+% if ~isempty(pEx)
+%     % divide by 2 for 50%
+%     tld.var = var(patches(:,:,1))/2;
+% end
+
 % disp(['Variance : ' num2str(tld.var)]);
 
 % Generate Negative Examples
@@ -91,12 +98,26 @@ tld.nEx{1}  = nEx; % save negative patches for later
 
 % Train using training set ------------------------------------------------
 tld.detection_model = [];
-%%% --------------------- (BEGIN) -----------------------------------------
-%%% TODO: initialize the detector based on the positive features (pEx)
-%%        and negative example features (nEx)
-%%        from source image. Store the model in tld.detection_model.
+%% --------------------- (BEGIN) -----------------------------------------
+% TODO: initialize the detector based on the positive features (pEx)
+%        and negative example features (nEx)
+%        from source image. Store the model in tld.detection_model.
 
-%%% ------------------------- (END) ----------------------------------------
+% Reject patches based on variance
+patch_variances = zeros(1,size(patches,3)); 
+for i=1:size(patches,3)
+    this_patch = patches(:,:,i);
+    patch_variances(i) = var(this_patch(:));
+    if i == 1
+        tld.var = patch_variances(i); 
+    end
+end
+pEx = pEx(:, patch_variances>(tld.var/2));
+patches = patches(:, patch_variances>(tld.var/2));
+
+
+
+%% ------------------------- (END) ----------------------------------------
 
 
 

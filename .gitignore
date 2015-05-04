@@ -1,4 +1,3 @@
 *.pyc
 .DS_Store
 *.o
-project2/code/compile_all_platforms.m
