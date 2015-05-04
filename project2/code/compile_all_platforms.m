@@ -44,7 +44,9 @@ if ismac
     mex -O bb_overlap.cpp
     mex -O warp.cpp
     mex -O distance.cpp
-    
+    cd ..
+    disp('Compilation finished.');
+    return
 end
 
 if isunix
