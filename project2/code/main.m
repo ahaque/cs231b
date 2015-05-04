@@ -9,6 +9,9 @@
 
 function main(class_name ,num_frames_to_track, data_dir)
 
+
+setenv('DYLD_LIBRARY_PATH',['/opt/local/lib/:' getenv('DYLD_LIBRARY_PATH')])
+
 if nargin<3
   data_dir = '../data';
 end
