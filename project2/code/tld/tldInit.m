@@ -69,16 +69,35 @@ tld.target = img_patch(tld.img{1}.input,tld.bb(:,1));
 % Generate Positive Examples
 [pEx,bbP] = tldGeneratePositiveData(tld,overlap,tld.img{1},tld.p_par_init);
 
+% Augment positive examples
+% TODO: replace bbP if needed later
+new_pEx = zeros(size(pEx,1), size(pEx,2)*tld.p_par_init.num_warps);
+pEx_index = 1;
+for i=1:size(bbP,2)
+    for w=1:tld.p_par_init.num_warps
+        if w == 1
+            new_pEx(:, pEx_index) = pEx(i);
+        else
+            curr_patch = img_patch(tld.img{1}.input, bbP(:,i), pEx_index, tld.p_par_init);
+            new_pEx(:, pEx_index) = tldPatch2Pattern(curr_patch,tld.model.patchsize);
+        end
+        pEx_index = pEx_index + 1;
+    end
+end
+pEx = new_pEx;
 
 % Correct initial bbox
 [~, mxo] = max(overlap);
 tld.bb(:,1) = tld.grid(1:4, mxo);
 
+% closest grid adjusted bbox to ground truth
+closest_patch = img_patch(tld.img{1}.input,tld.bb(:,1));
+
 % Variance threshold
 if ~isempty(pEx)
-  tld.var = var(pEx(:,1))/2;
+  tld.var = var(double(closest_patch(:)));
 end
-% disp(['Variance : ' num2str(tld.var)]);
+disp(['Variance : ' num2str(tld.var)]);
 
 % Generate Negative Examples
 [nEx] = tldInitializeNegativeData(tld,overlap,tld.img{1});
@@ -95,10 +114,15 @@ tld.detection_model = [];
 %%% TODO: initialize the detector based on the positive features (pEx)
 %%        and negative example features (nEx)
 %%        from source image. Store the model in tld.detection_model.
+X = [pEx nEx]';
+y = [ones(1, size(pEx,2)) zeros(1, size(nEx,2))]';
+
+tld.detection_model = fitcsvm(X, y);
+
+% y_hat = predict(tld.detection_model, nEx');
+% acc = sum(y_hat == zeros(size(nEx,2), 1))/length(y_hat)
 
 %%% ------------------------- (END) ----------------------------------------
-
-
 
 % Nearest Neightbour 
 tld.pex = [];
