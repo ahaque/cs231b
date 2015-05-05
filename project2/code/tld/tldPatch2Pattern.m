@@ -19,11 +19,9 @@ function pattern = tldPatch2Pattern(patch,patchsize)
     % to update or compute:
     % --------------------
     % pattern (1 x tld.model.pattern_size) vector feature extracted from patch
-
+    
     patch = imresize(patch, patchsize);
-    mean_patch = mean(mean(patch, 1),2);
- 
-    patch = patch - mean_patch;
+    patch = patch - mean(double(patch(:)));
     pattern = reshape(patch, [numel(patch), 1]);
     
     % -----------------  (END) ---------------------
