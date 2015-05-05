@@ -38,31 +38,54 @@ function [BB Conf tld] = tldDetection(tld,I)
     % HINT: bb_overlap in bbox/ might be a useful code to prune the grid boxes before
     % running your detector. This is just a speed-up and might hurt performance.
     
+    tic
     patch_variances = zeros(1, size(tld.grid, 2));
     patches = cell(1, size(tld.grid, 2));
+    idx_dt = 1:size(tld.grid, 2);
     for i=1:size(tld.grid, 2)
         patches{i} = img_patch(img.input,tld.grid(1:4, i));
         this_patch = patches{i};
         patch_variances(i) = var(double(this_patch(:)));
     end
+    %max(idx_dt)
+    
+    idx_dt = idx_dt(patch_variances>(tld.var/2));
     stage1_bboxes = tld.grid(1:4, patch_variances>(tld.var/2));
     patches = patches(patch_variances>(tld.var/2));
+    toc
     disp(['Number of Original Bboxes : ' num2str(size(tld.grid, 2))]);
     disp(['Number of Bboxes after Stage 1 : ' num2str(size(stage1_bboxes, 2))]);
+    disp(['Number of Binary Bboxes after Stage 1 : ' num2str(length(idx_dt))]);
     
     % TODO: possible optimization - store patches and index into them
     % instead of recomputing them
     X = zeros(tld.pattern_size, size(stage1_bboxes, 2));
+    tic
     for i=1:size(stage1_bboxes, 2)
         this_patch = patches{i};
         X(:, i) = tldPatch2Pattern(this_patch, tld.model.patchsize);
     end
-    
+    %max(idx_dt)
     y_hat = predict(tld.detection_model, X');
     stage2_bboxes = stage1_bboxes(:, y_hat==1);
-    
+    idx_dt = idx_dt(y_hat==1);
+    toc
     disp(['Number of Bboxes after Stage 2 : ' num2str(size(stage2_bboxes, 2))]);
-    pause
+    disp(['Number of Binary Bboxes after Stage 2 : ' num2str(length(idx_dt))]);
+    
+    % Stage 3
+    %max(idx_dt)
+    tic
+    X = X(:, y_hat==1);
+    [conf_nn, isin] = tldNN(X, tld);
+    stage3_bboxes = stage2_bboxes(:, isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
+    idx_dt = idx_dt(isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
+    toc
+    disp(['Number of Bboxes after Stage 3 : ' num2str(size(stage3_bboxes, 2))]);
+    disp(['Number of Binary Bboxes after Stage 3 : ' num2str(length(idx_dt))]);
+    
+    %max(idx_dt)
+    %pause
     % ------------------ (END) -----------------------
 
 

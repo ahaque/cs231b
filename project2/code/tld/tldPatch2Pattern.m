@@ -20,7 +20,8 @@ function pattern = tldPatch2Pattern(patch,patchsize)
     % --------------------
     % pattern (1 x tld.model.pattern_size) vector feature extracted from patch
     
-    patch = imresize(patch, patchsize);
+    % Zero Mean centering
+    patch = imresize(patch, patchsize, 'nearest');
     patch = patch - mean(double(patch(:)));
     pattern = reshape(patch, [numel(patch), 1]);
     

@@ -49,9 +49,10 @@ function [conf1,isin] = tldNN(x,tld)
         end
         
         [pEx_value, pEx_index] = max(pEx_dists);
-        [nEx_value, ~] = max(pEx_dists);
+        [nEx_value, ~] = max(nEx_dists);
         
         isin(2,i) = pEx_index;
+        %[pEx_value, nEx_value, tld.model.thr_nn]
         if pEx_value < nEx_value || pEx_value < tld.model.thr_nn
             % NN was a negative patch - hence curr patch is negative
             % or pEx_value was lower than threshold
