@@ -43,8 +43,8 @@ opt.detection_model_params = struct('learning_params', []);
 %% number of warps on positive box, possible noise to be added, rotation of positive, shifting etc.
 %% In gneral, this is data augmentation which will be really useful when training with limited examples.
 
-opt.p_par_init      = struct('num_closest',1,'num_warps',20,'noise',5,'angle',20,'shift',0.02,'scale',0.02); % synthesis of positive examples during initialization
-opt.p_par_update    = struct('num_closest',20,'num_warps',10,'noise',5,'angle',10,'shift',0.02,'scale',0.02); % synthesis of positive examples during update
+opt.p_par_init      = struct('num_closest',10,'num_warps',20,'noise',5,'angle',20,'shift',0.02,'scale',0.02); % synthesis of positive examples during initialization
+opt.p_par_update    = struct('num_closest',10,'num_warps',10,'noise',5,'angle',10,'shift',0.02,'scale',0.02); % synthesis of positive examples during update
 opt.n_par           = struct('overlap',0.2,'num_patches',100); % negative examples initialization/update
 % ------------------------------- END ---------------------------------------
 
