@@ -1,8 +1,8 @@
 % Copyright 2011 Zdenek Kalal
-%
 % This file is part of TLD.
 
 function pattern = tldPatch2Pattern(patch,patchsize)
+    pattern = [];
     % ------------------ (BEGIN) -------------------
     % TODO: extract a feature from the patch after optionally resizing
     %       it to patchsize. Store this feature in pattern. At the simplest
@@ -20,14 +20,15 @@ function pattern = tldPatch2Pattern(patch,patchsize)
     % --------------------
     % pattern (1 x tld.model.pattern_size) vector feature extracted from patch
     
-    % Zero Mean centering
-    patch = imresize(patch, patchsize, 'nearest');
+    patch = fastResize(patch, patchsize);
+    %patch = imresize(patch, patchsize);
     patch = patch - mean(double(patch(:)));
     pattern = reshape(patch, [numel(patch), 1]);
-    
+
     % -----------------  (END) ---------------------
-    
+
     if ~isempty(patch) && isempty(pattern)
-        pattern = zeros(prod(patchsize),1);
+      pattern = zeros(2,1);
     end
+
 end

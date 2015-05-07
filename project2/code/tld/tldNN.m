@@ -1,5 +1,4 @@
 % Copyright 2011 Zdenek Kalal
-%
 % This file is part of TLD.
 
 function [conf1,isin] = tldNN(x,tld)
@@ -37,34 +36,29 @@ function [conf1,isin] = tldNN(x,tld)
     %        -- isin(2,i) index of the maximally correlated positive patch from pex
     %        -- inin(3,i) is set to 1 (else set to nan) if patch i belongs to negatives 
     % HINT: Make use of distance function in mex folder to make things faster
-    
+
     pEx_dists = -1*ones(1, size(x,2));
     nEx_dists = -1*ones(1, size(x,2));
     for i=1:size(x, 2)
-        for p=1:size(tld.pex, 2)
-            pEx_dists(p) = distance(x(:,i), tld.pex(:,p), 1);
-        end
-        for n=1:size(tld.nex, 2)
-            nEx_dists(n) = distance(x(:,i), tld.nex(:,n), 1);
-        end
-        
+        pEx_dists = distance(x(:,i), tld.pex, 1);
+        nEx_dists = distance(x(:,i), tld.nex, 1);
+
         [pEx_value, pEx_index] = max(pEx_dists);
         [nEx_value, ~] = max(nEx_dists);
         
         isin(2,i) = pEx_index;
         %[pEx_value, nEx_value, tld.model.thr_nn]
-        if pEx_value < nEx_value || pEx_value < tld.model.thr_nn
-            % NN was a negative patch - hence curr patch is negative
-            % or pEx_value was lower than threshold
-            isin(1,i) = nan;
-            isin(3,i) = 1;
-        else
-            % NN was a positive patch within threshold
+        if pEx_value > tld.model.ncc_thesame
+            % NN is a positive patch
             isin(1,i) = 1;
             isin(3,i) = nan;
+        elseif nEx_value > tld.model.ncc_thesame
+            % Else negative
+            isin(1,i) = nan;
+            isin(3,i) = 1;
         end
         conf1(i) = (1 - nEx_value)/(2 - nEx_value - pEx_value);
     end
+   % ----------------------- (END) -------------------------------
 
-    % ----------------------- (END) -------------------------------
 end

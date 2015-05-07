@@ -28,8 +28,8 @@ end
 if ismac
     disp('Mac');
     
-    include = ' -I/usr/local/include/opencv/ -I/usr/local/include/'; 
-    libpath = '/usr/local/lib/'; 
+    include = ' -I/opt/local/include/opencv/ -I/opt/local/include/'; 
+    libpath = '/opt/local/lib/'; 
     
     files = dir([libpath 'libopencv*.dylib']);
     
@@ -44,8 +44,6 @@ if ismac
     mex -O bb_overlap.cpp
     mex -O warp.cpp
     mex -O distance.cpp
-    cd ..
-    disp('Compilation finished.');
     return
 end
 
@@ -55,7 +53,7 @@ if isunix
     include = ' -I/usr/local/include/opencv/ -I/usr/local/include/';
     libpath = '/usr/local/lib/';
     
-    files = dir([libpath 'libopencv*.so.2.4.6']);
+    files = dir([libpath 'libopencv*.so.2.4.11']);
     %files = [libpath 'libopencv_core.so ' libpath 'libopencv_highgui.so'];
     %lib = files;
     lib = [];
@@ -63,10 +61,10 @@ if isunix
         lib = [lib ' ' libpath files(i).name];
     end
     
-    lib = ' /usr/local/lib/libopencv_core.so.2.4.6 /usr/local/lib/libopencv_highgui.so.2.4.6 /usr/local/lib/libopencv_imgproc.so.2.4.6 /usr/local/lib/libopencv_video.so.2.4.6';
+    lib = ' /usr/local/lib/libopencv_core.so.2.4.11 /usr/local/lib/libopencv_highgui.so.2.4.11 /usr/local/lib/libopencv_imgproc.so.2.4.11 /usr/local/lib/libopencv_video.so.2.4.11';
 
-    keyboard;
-    eval(['mex lk.cpp -O' include lib]);
+    %keyboard;
+    %eval(['mex lk.cpp -O' include lib]);
     mex -O -c tld.cpp
     mex -O linkagemex.cpp
     mex -O bb_overlap.cpp

@@ -22,13 +22,12 @@ TR = 1; if isempty(tBB), TR = 0; end % is tracker defined?
 
 %keyboard;
 
-%% -------------------------------------- (BEGIN) --------------------------
-%% TODO: We have provided a strategy to fuse the detection results
-%%       with the tracker. This is a very simple method which is slightly
-%%       different from the original TLD tracker. You should play
-%%       around with different ways of combining the detector and tracker.
-%%       Choosing a good startegy will greatly improve performance.
-
+% -------------------------------------- (BEGIN) --------------------------
+% TODO: We have provided a strategy to fuse the detection results
+%       with the tracker. This is a very simple method which is slightly
+%       different from the original TLD tracker. You should play
+%       around with different ways of combining the detector and tracker.
+%       Choosing a good startegy will greatly improve performance.
 
 if TR % if tracker is defined
     
@@ -69,11 +68,18 @@ else % if tracker is not defined
             tld.size(I)  = cSize;
             tld.valid(I) = 0; 
             fprintf('Re-initializing tracker ... \n');
+        else
+            [~, idx] = max(cConf);
+            tld.bb(:,I) = cBB(:,idx);
+            tld.conf(I)  = cConf(idx);
+            tld.size(I)  = cSize(idx);
+            tld.valid(I) = 0; 
+            fprintf('Re-initializing tracker 2... \n');
         end
     end
 end
 
-%% ------------------------------------- (END) ----------------------------
+% ------------------------------------- (END) ----------------------------
 
 
 % LEARNING ----------------------------------------------------------------
@@ -82,8 +88,8 @@ if isnan(sum(tld.bb(:, I)))
   fprintf('Box lost ... \n');
 end
 
-
 if tld.control.update_detector && tld.valid(I) == 1
+    fprintf('Calling tldLearning\n');
     tld = tldLearning(tld,I);
 end
 

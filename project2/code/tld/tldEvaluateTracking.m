@@ -1,20 +1,20 @@
-%% @brief: compute the average overlap between tracked box and ground-truth box,
-%%         as well as the area under curve of success plot. Additionally, compute
-%%         the map@0.5 overlap.
-%% @input:
-%%    - detection_file: a text file containing the detections comma separated in following format
-%%                      top_left_x,top_left_y,bottom_right_x,bottom_right_y,conf
-%%                      Each line corresponds to the deteciton in that frame. For instance, first
-%%                      line corresponds to the detection in the first frame, and so on.
-%%                      If there is not detection in a certain frame, then that line should have
-%%                      nan,nan,nan,nan,nan
-%%    - ground_truth_file: a text file containing the true boudning box for the object in each frame.
-%%                         same format as before but without confidence score
+% @brief: compute the average overlap between tracked box and ground-truth box,
+%         as well as the area under curve of success plot. Additionally, compute
+%         the map@0.5 overlap.
+% @input:
+%    - detection_file: a text file containing the detections comma separated in following format
+%                      top_left_x,top_left_y,bottom_right_x,bottom_right_y,conf
+%                      Each line corresponds to the deteciton in that frame. For instance, first
+%                      line corresponds to the detection in the first frame, and so on.
+%                      If there is not detection in a certain frame, then that line should have
+%                      nan,nan,nan,nan,nan
+%    - ground_truth_file: a text file containing the true boudning box for the object in each frame.
+%                         same format as before but without confidence score
 
-%%  @output:
-%%    - average_overlap: a single number giving the average overlap across all frames
-%%    - auc: area under curve of the success plot.
-%%    - map: mean average precision for boxes which have an overlap of atleast 0.5 with ground-truth
+%  @output:
+%    - average_overlap: a single number giving the average overlap across all frames
+%    - auc: area under curve of the success plot.
+%    - map: mean average precision for boxes which have an overlap of atleast 0.5 with ground-truth
 
 function [average_overlap, auc, map] = tldEvaluateTracking(detection_file, ground_truth_file, num_test_frames)
 
@@ -57,11 +57,11 @@ for i = 1:num_frames
   end
 end
 
-%% get the mean overlap
+% get the mean overlap
 average_overlap = mean(overlap);
 
 
-%% get the AUC for success plot
+% get the AUC for success plot
 success_ratio = zeros(1,11);
 ctr = 1;
 for overlap_thresh = 0:0.1:1.0
@@ -70,7 +70,7 @@ for overlap_thresh = 0:0.1:1.0
 end
 auc = trapz(0:0.1:1.0, success_ratio);
 
-%% get map
+% get map
 overlap = overlap(isvalid_det);
 [~, sort_idx] = sort(db_scores(isvalid_det), 'descend');
 map = 0;

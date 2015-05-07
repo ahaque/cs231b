@@ -2,7 +2,7 @@
 %
 % This file is part of TLD.
 
-function pattern = tldGetPattern(img, bb, patchsize, flip, pattern_size)
+function pattern = tldGetPattern(img,bb,patchsize,flip, pattern_size)
 % get patch under bounding box (bb), normalize it size, reshape to a column
 % vector and normalize to zero mean and unit variance (ZMUV)
 
