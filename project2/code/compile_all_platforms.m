@@ -38,7 +38,7 @@ if ismac
         lib = [lib ' ' libpath files(i).name];
     end
  
-    eval(['mex lk.cpp -O' include lib]);
+    %eval(['mex lk.cpp -O' include lib]);
     mex -O -c tld.cpp
     mex -O linkagemex.cpp
     mex -O bb_overlap.cpp
