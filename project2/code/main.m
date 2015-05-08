@@ -1,11 +1,11 @@
-%% --- run model on a test video ----
+% --- run model on a test video ----
 % class_name - name of the video like Car4
 % data_dir - path to the tiny_tracking_data directory
 % num_frames_to_track - number of frames to track the object for (default = inf)
 
-%% First test with only 20 frames on Car4 (you should get map=1.0 and avg_overlap >= 0.8)
-%% At num_frames=250, you should expect avg_overlap >= 0.68 and map >= 0.78)
-%% These values should improve with better features such as LBP.
+% First test with only 20 frames on Car4 (you should get map=1.0 and avg_overlap >= 0.8)
+% At num_frames=250, you should expect avg_overlap >= 0.68 and map >= 0.78)
+% These values should improve with better features such as LBP.
 
 function main(class_name ,num_frames_to_track, data_dir)
 

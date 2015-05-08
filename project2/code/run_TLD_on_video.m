@@ -5,7 +5,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
 
     addpath(genpath('.')); init_workspace; 
 
-    opt.source          = struct('camera',0,'input',video_image_directory,'bb0',[]); % camera/directory swith, directory_name, initial_bounding_box (if empty, it will be selected by the user)
+    opt.source          = struct('camera',0,'input', video_image_directory,'bb0',[]); % camera/directory swith, directory_name, initial_bounding_box (if empty, it will be selected by the user)
     opt.output          = output_directory;
 
     mkdir(opt.output); % output directory that will contain bounding boxes + confidence
@@ -15,7 +15,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % TODO: change parameters to get best performance
 
 
-    min_win             = 60; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
+    min_win             = 50; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
     patchsize           = [20 20]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
     fliplr              = 0; % if set to one, the model automatically learns mirrored versions of the object (data augmentation)
     maxbbox             = 1; % fraction of evaluated bounding boxes in every frame, maxbox = 0 means detector is truned off, if you don't care about speed set it to 1
@@ -25,11 +25,12 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     opt.model           = struct('min_win',min_win, ...
                                 'patchsize',patchsize, ...
                                 'fliplr',fliplr, ...
-                                'ncc_thesame',0.9, ...
+                                'ncc_thesame',0.90, ...
                                 'valid',0.5,...
                                 'thr_nn',0.6,...
                                 'thr_nn_valid',0.75, ...
-                                'nn_patch_confidence', 0.60);
+                                'nn_patch_confidence', 0.60, ...
+                                'bbox_delta', 0.2); % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1
 
     % Add suitable parameters according to your choice of learning/detection
     % algorithm.
@@ -40,8 +41,8 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % number of warps on positive box, possible noise to be added, rotation of positive, shifting etc.
     % In gneral, this is data augmentation which will be really useful when training with limited examples.
 
-    opt.p_par_init      = struct('num_closest',20,'num_warps',50,'noise',5,'angle',20,'shift',0.02,'scale',0.02); % synthesis of positive examples during initialization
-    opt.p_par_update    = struct('num_closest',10,'num_warps',20,'noise',5,'angle',10,'shift',0.02,'scale',0.02); % synthesis of positive examples during update
+    opt.p_par_init      = struct('num_closest',15,'num_warps',50,'noise',10,'angle',20,'shift',0.02,'scale',0.05); % synthesis of positive examples during initialization
+    opt.p_par_update    = struct('num_closest',10,'num_warps',10,'noise',5,'angle',10,'shift',0.02,'scale',0.05); % synthesis of positive examples during update
     opt.n_par           = struct('overlap',0.2,'num_patches',100); % negative examples initialization/update
     % ------------------------------- END ---------------------------------------
 

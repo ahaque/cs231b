@@ -38,43 +38,6 @@ function [BB Conf tld] = tldDetection(tld,I)
   
     % Fahim code
     %{
-    %tic
-    patch_variances = zeros(1, size(tld.grid, 2));
-    patches = cell(1, size(tld.grid, 2));
-    idx_dt = 1:size(tld.grid, 2);
-    for i=1:size(tld.grid, 2)
-        patches{i} = img_patch(img.input,tld.grid(1:4, i));
-        this_patch = patches{i};
-        patch_variances(i) = var(double(this_patch(:)));
-    end
-
-    idx_dt = idx_dt(patch_variances > (tld.var/2));
-    stage1_bboxes = tld.grid(1:4, patch_variances > (tld.var/2));
-    patches = patches(patch_variances > (tld.var/2));
-    %toc
-    %fprintf('-------------------------\n');
-    disp(['Number of Original Bboxes : ' num2str(size(tld.grid, 2))]);
-    %disp(['Number of Bboxes after Stage 1 : ' num2str(size(stage1_bboxes, 2))]);
-    disp(['Number of Binary Bboxes after Stage 1 : ' num2str(length(idx_dt))]);
-    %disp(['Idx_dt after stage 1 : ' num2str(length(idx_dt))]);
-
-    % TODO: possible optimization - store patches and index into them
-    % instead of recomputing them
-    X = zeros(tld.pattern_size, size(stage1_bboxes, 2));
-    %tic
-    for i=1:size(stage1_bboxes, 2)
-        this_patch = patches{i};
-        X(:, i) = tldPatch2Pattern(this_patch, tld.model.patchsize);
-    end
-    y_hat = predict(tld.detection_model, X');
-    stage2_bboxes = stage1_bboxes(:, y_hat==1);
-    idx_dt = idx_dt(y_hat==1);
-    %toc
-    %fprintf('-------------------------\n');
-    %disp(['Number of Bboxes after Stage 2 : ' num2str(size(stage2_bboxes, 2))]);
-    disp(['Number of Binary Bboxes after Stage 2 : ' num2str(length(idx_dt))]);
-    %disp(['Idx_dt after stage 2 : ' num2str(length(idx_dt))]);
-    
     % Stage 3
     %tic
     X = X(:, y_hat==1);
@@ -84,19 +47,6 @@ function [BB Conf tld] = tldDetection(tld,I)
     pause
     idx_dt = idx_dt(isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
 
-    % TODO: Albert- I THINK THERE IS A BUG HERE: Make sure idx_dt at this point
-    % actually corresponds to indices in the full 32K bboxes. My
-    % preliminary investigations (wednesday) tell me that tldNN's isin's
-    % 2nd row indexes into the pex array and not the actual index of the
-    % bbox. If you look in tldNN, we compute the max pex value, find the
-    % index of that, then assign it to isin(2,i) which is always between
-    % one and length(pex). It should be between one and ~32K?
-    
-    %toc
-    %fprintf('-------------------------\n');
-    %disp(['Number of Bboxes after Stage 3 : ' num2str(size(stage3_bboxes, 2))]);
-    disp(['Number of Binary Bboxes after Stage 3 : ' num2str(length(idx_dt))]);
-    %disp(['Idx_dt after stage 3 : ' num2str(length(idx_dt))]);
     %}
     
     fprintf('---------------------------------\n');
@@ -104,12 +54,10 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 1: VARIANCE THRESHOLD
-    tic
-    idx_dt = 1:size(tld.grid, 2);
-    fprintf('Stage 0: %i\n', length(idx_dt));
-    patch_variances = zeros(1, size(tld.grid, 2));
-    
+    fprintf('Stage 0: %i\n', size(tld.grid, 2)); tic;
+     
     % Get the actual patches
+    patch_variances = zeros(1, size(tld.grid, 2));    
     patches = cell(1, size(tld.grid, 2));
     for i=1:size(tld.grid, 2)
         patches{i} = img_patch(img.input,tld.grid(1:4, i));
@@ -121,11 +69,11 @@ function [BB Conf tld] = tldDetection(tld,I)
     idx_dt = find(patch_variances > (tld.var/2));
     stage1_bboxes = tld.grid(1:4, idx_dt);
     patches = patches(idx_dt);
-    fprintf('Stage 1: %i\t', length(idx_dt));
-    toc
     
+    fprintf('Stage 1: %i\t', length(idx_dt)); toc;
+  
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % STAGE 2: SVM CLASSIFIER
+    % STAGE 2A: SVM CLASSIFIER
     tic
     % Create the feature vectors
     X = zeros(tld.pattern_size, size(stage1_bboxes, 2));
@@ -137,30 +85,40 @@ function [BB Conf tld] = tldDetection(tld,I)
     % Get the positive candidates
     idx_dt = idx_dt(y_hat==1);
     stage2_bboxes = tld.grid(:, idx_dt);
-    fprintf('Stage 2: %i\t', length(idx_dt));
-    toc
+    
+    fprintf('Stage 2A: %i\t', length(idx_dt)); toc;
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % STAGE 3: NEAREST NEIGHBOR
-    % AS OF THURSDAY 4 AM, COMMENTING THIS OUT DOES OKAY... (albert)
+    % STAGE 2B: BOUNDING BOX SIZE FILTER
+    % Select bboxes that are of similar size to the one in previous frame
     tic
-    % Recompose the feature vectors
-    %X = X(:, y_hat==1);
-    %[conf_nn, isin] = tldNN(X, tld);
-    %stage3_bboxes = stage2_bboxes(:, isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
-    % MAKE SURE TO GET THE INDEXING CORRECT
-    %idx_dt = idx_dt(isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
+    s2_bbox_hw = bb_size(stage2_bboxes);
     
-    fprintf('Stage 3: %i\t', length(idx_dt));
-    toc
-    % ------------------ (END) -----------------------
+    % Get the size of the last bbox and find thresholds
+    previous_bbox_size = bb_size(tld.bb(:,1:I-1));
+    min1 = previous_bbox_size(1)*(1-tld.model.bbox_delta);
+    max1 = previous_bbox_size(1)*(1+tld.model.bbox_delta);
+    min2 = previous_bbox_size(2)*(1-tld.model.bbox_delta);
+    max2 = previous_bbox_size(2)*(1+tld.model.bbox_delta);
+    
+    % Filter candidate boxes that are too large or too small
+    for i = 1:size(s2_bbox_hw, 2)
+        if s2_bbox_hw(1,i) < min1 || s2_bbox_hw(1,i) > max1 || s2_bbox_hw(2,i) < min2 || s2_bbox_hw(2,i) > max2
+            idx_dt(i) = 0;
+        end
+    end
+    
+    % Remove the zero-value elements
+    idx_dt(idx_dt == 0) = [];
+   
+    fprintf('Stage 2B: %i\t', length(idx_dt)); toc;
 
-
-
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % STAGE 3: NEAREST NEIGHBOR (this was provided by starter code)
+    
     num_dt = length(idx_dt); % get the number detected bounding boxes so-far 
     if num_dt == 0, tld.dt{I} = dt; return; end % if nothing detected, return
-
-
+    
     % initialize detection structure
     dt.bb     = tld.grid(1:4,idx_dt); % bounding boxes
     dt.idx    = idx_dt; %find(idx_dt); % indexes of detected bounding boxes within the scanning grid
@@ -168,6 +126,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     dt.isin   = nan(3,num_dt); % detected (isin=1) or rejected (isin=0) by nearest neighbour classifier
     dt.patch  = nan(prod(tld.model.patchsize),num_dt); % Corresopnding patches
 
+    tic
     for i = 1:num_dt % for every remaining detection
 
         ex   = tldGetPattern(img,dt.bb(:,i),tld.model.patchsize,0,tld.model.pattern_size); % measure patch
@@ -179,9 +138,12 @@ function [BB Conf tld] = tldDetection(tld,I)
         dt.patch(:,i) = ex;
 
     end
-
+    
     idx = dt.conf1 > tld.model.thr_nn; % get all indexes that made it through the nearest neighbour
-
+    
+    fprintf('Stage 3: %i\t', sum(idx));
+    toc
+    
     if numel(idx) > 10
       [~, sort_idx] = sort(dt.conf1, 'descend');
       idx = false(size(dt.conf1));

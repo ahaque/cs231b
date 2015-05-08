@@ -21,8 +21,7 @@ function tld = tldTrainNN(pEx,nEx,tld)
     %                      Naively extending tld.pex and tld.nex with all of pEx and nEx will
     %                      blow up computation. Choose wisely!
 
-    
-    MAX_HISTORY_SIZE = 200;
+    MAX_HISTORY_SIZE = 1000;
     num_pos_history = size(tld.pex, 2);
     num_neg_history = size(tld.nex, 2);
     
@@ -33,28 +32,24 @@ function tld = tldTrainNN(pEx,nEx,tld)
     if isempty(tld.pex) && isempty(tld.nex)
         tld.pex = pEx;
         tld.nex = nEx;
-        
-        %fprintf('After\n');
-        %[size(tld.pex, 2) size(tld.nex, 2)]
-    
-        return
-    end
-    % Shuffle tld.pex and tld.pex to introduce randomness in the history
-    % Shuffle the columns
-    tld.pex = tld.pex(:, randperm(num_pos_history));
-    tld.nex = tld.nex(:, randperm(num_neg_history));
-    
-    % Concatenate the new data first so we're more likely to keep it
-    tld.pex = [pEx tld.pex];
-    tld.nex = [nEx tld.nex];
-    
-    % Select the first MAX_HISTORY_SIZE elements (or everything if the
-    % concatenated array is still less than MAX_HISTORY_SIZE
-    pos_end_idx = min(size(tld.pex, 2), MAX_HISTORY_SIZE);
-    neg_end_idx = min(size(tld.nex, 2), MAX_HISTORY_SIZE);
+    else
+        % Shuffle tld.pex and tld.pex to introduce randomness in the history
+        % Shuffle the columns
+        tld.pex = tld.pex(:, randperm(num_pos_history));
+        tld.nex = tld.nex(:, randperm(num_neg_history));
 
-    tld.pex = tld.pex(:, 1:pos_end_idx);
-    tld.nex = tld.nex(:, 1:neg_end_idx);
+        % Concatenate the new data first so we're more likely to keep it
+        tld.pex = [pEx tld.pex];
+        tld.nex = [nEx tld.nex];
+
+        % Select the first MAX_HISTORY_SIZE elements (or everything if the
+        % concatenated array is still less than MAX_HISTORY_SIZE
+        pos_end_idx = min(size(tld.pex, 2), MAX_HISTORY_SIZE);
+        neg_end_idx = min(size(tld.nex, 2), MAX_HISTORY_SIZE);
+
+        tld.pex = tld.pex(:, 1:pos_end_idx);
+        tld.nex = tld.nex(:, 1:neg_end_idx);
+    end
     
     %fprintf('After\n');
     %[size(tld.pex, 2) size(tld.nex, 2)]

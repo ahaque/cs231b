@@ -37,8 +37,6 @@ function [conf1,isin] = tldNN(x,tld)
     %        -- inin(3,i) is set to 1 (else set to nan) if patch i belongs to negatives 
     % HINT: Make use of distance function in mex folder to make things faster
 
-    pEx_dists = -1*ones(1, size(x,2));
-    nEx_dists = -1*ones(1, size(x,2));
     for i=1:size(x, 2)
         pEx_dists = distance(x(:,i), tld.pex, 1);
         nEx_dists = distance(x(:,i), tld.nex, 1);
@@ -47,18 +45,20 @@ function [conf1,isin] = tldNN(x,tld)
         [nEx_value, ~] = max(nEx_dists);
         
         isin(2,i) = pEx_index;
-        %[pEx_value, nEx_value, tld.model.thr_nn]
         if pEx_value > tld.model.ncc_thesame
             % NN is a positive patch
             isin(1,i) = 1;
             isin(3,i) = nan;
-        elseif nEx_value > tld.model.ncc_thesame
+        else %if nEx_value > tld.model.ncc_thesame
             % Else negative
             isin(1,i) = nan;
             isin(3,i) = 1;
         end
         conf1(i) = (1 - nEx_value)/(2 - nEx_value - pEx_value);
+        %[pEx_value, nEx_value, conf1(i), tld.model.thr_nn]
     end
+   
    % ----------------------- (END) -------------------------------
 
+   
 end
