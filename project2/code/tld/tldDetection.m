@@ -88,9 +88,9 @@ function [BB Conf tld] = tldDetection(tld,I)
     % STAGE 2B: BOUNDING BOX SIZE FILTER
     % Select bboxes that are of similar size to the one in previous frame
     s2_bbox_hw = bb_size(stage2_bboxes);
-    
+    tld.bb(:,I-1)
     % Get the size of the last bbox and find thresholds
-    previous_bbox_size = bb_size(tld.bb(:,1:I-1));
+    previous_bbox_size = bb_size(tld.bb(:,I-1));
     min1 = previous_bbox_size(1)*(1-tld.model.bbox_size_delta);
     max1 = previous_bbox_size(1)*(1+tld.model.bbox_size_delta);
     min2 = previous_bbox_size(2)*(1-tld.model.bbox_size_delta);
@@ -116,15 +116,23 @@ function [BB Conf tld] = tldDetection(tld,I)
     stage2b_bboxes = tld.grid(:, idx_dt_2c);
     
     % Get the size of the last bbox and find thresholds
-    previous_bbox_loc = tld.bb(:,1:I-1);
+    previous_bbox_loc = tld.bb(:,I-1)
     min1 = previous_bbox_loc(1)*(1-tld.model.bbox_loc_delta);
     max1 = previous_bbox_loc(1)*(1+tld.model.bbox_loc_delta);
     min2 = previous_bbox_loc(2)*(1-tld.model.bbox_loc_delta);
     max2 = previous_bbox_loc(2)*(1+tld.model.bbox_loc_delta);
+    min3 = previous_bbox_loc(3)*(1-tld.model.bbox_loc_delta);
+    max3 = previous_bbox_loc(3)*(1+tld.model.bbox_loc_delta);
+    min4 = previous_bbox_loc(4)*(1-tld.model.bbox_loc_delta);
+    max4 = previous_bbox_loc(4)*(1+tld.model.bbox_loc_delta);
     
     % Remove candidate boxes that jump too much
     for i = 1:size(stage2b_bboxes, 2)
+        % Check the first coordinate
         if stage2b_bboxes(1,i) < min1 || stage2b_bboxes(1,i) > max1 || stage2b_bboxes(2,i) < min2 || stage2b_bboxes(2,i) > max2
+            idx_dt_2c(i) = 0;
+        % Check 2nd coordinate
+        elseif stage2b_bboxes(3,i) < min3 || stage2b_bboxes(3,i) > max3 || stage2b_bboxes(4,i) < min4 || stage2b_bboxes(4,i) > max4
             idx_dt_2c(i) = 0;
         end
     end

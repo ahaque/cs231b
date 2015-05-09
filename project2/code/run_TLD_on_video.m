@@ -15,7 +15,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % TODO: change parameters to get best performance
 
 
-    min_win             = 25; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
+    min_win             = 50; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
     patchsize           = [25 25]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
     fliplr              = 0; % if set to one, the model automatically learns mirrored versions of the object (data augmentation)
     maxbbox             = 1; % fraction of evaluated bounding boxes in every frame, maxbox = 0 means detector is truned off, if you don't care about speed set it to 1
@@ -30,8 +30,8 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
                                 'thr_nn',0.6,...
                                 'thr_nn_valid',0.75, ...
                                 'nn_patch_confidence', 0.60, ...
-                                'bbox_size_delta', 3, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1
-                                'bbox_loc_delta', 1); % X = width/height of bbox. If new bbox center is more than bbox_loc_delta*X pixels away from previous center, discard it
+                                'bbox_size_delta', 0.25, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1
+                                'bbox_loc_delta', 0.5); % X = width/height of bbox. If new bbox center is more than bbox_loc_delta*X pixels away from previous center, discard it
 
     % Add suitable parameters according to your choice of learning/detection
     % algorithm.
