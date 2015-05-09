@@ -74,7 +74,7 @@ else % if tracker is not defined
             tld.conf(I)  = cConf(idx);
             tld.size(I)  = cSize(idx);
             tld.valid(I) = 0; 
-            fprintf('Re-initializing tracker 2... \n');
+            fprintf('Re-initializing tracker 2 \n');
         end
     end
     % If detector is not defined..
@@ -90,7 +90,6 @@ if isnan(sum(tld.bb(:, I)))
 end
 
 if tld.control.update_detector && tld.valid(I) == 1
-    fprintf('Calling tldLearning\n');
     tld = tldLearning(tld,I);
 end
 

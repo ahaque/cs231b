@@ -16,7 +16,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
 
 
     min_win             = 50; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
-    patchsize           = [30 30]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
+    patchsize           = [25 25]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
     fliplr              = 0; % if set to one, the model automatically learns mirrored versions of the object (data augmentation)
     maxbbox             = 1; % fraction of evaluated bounding boxes in every frame, maxbox = 0 means detector is truned off, if you don't care about speed set it to 1
     update_detector     = 1; % learning on/off, of 0 detector is trained only in the first frame and then remains fixed
@@ -25,13 +25,13 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     opt.model           = struct('min_win',min_win, ...
                                 'patchsize',patchsize, ...
                                 'fliplr',fliplr, ...
-                                'ncc_thesame',0.95, ...
+                                'ncc_thesame',0.5, ...
                                 'valid',0.5,...
                                 'thr_nn',0.2,...
                                 'thr_nn_valid',0.75, ...
                                 'nn_patch_confidence', 0.60, ...
                                 'bbox_size_delta', 0.2, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1
-                                'bbox_loc_delta', 0.25 ); % X = width/height of bbox. If new bbox is more than bbox_loc_delta*X pixels away from previous bbox, discard it
+                                'bbox_loc_delta', 0.25 ); % X = width/height of bbox. If new bbox center is more than bbox_loc_delta*X pixels away from previous center, discard it
 
     % Add suitable parameters according to your choice of learning/detection
     % algorithm.
@@ -42,9 +42,9 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % number of warps on positive box, possible noise to be added, rotation of positive, shifting etc.
     % In gneral, this is data augmentation which will be really useful when training with limited examples.
 
-    opt.p_par_init      = struct('num_closest',15,'num_warps',50,'noise',10,'angle',20,'shift',0.02,'scale',0.05); % synthesis of positive examples during initialization
-    opt.p_par_update    = struct('num_closest',10,'num_warps',10,'noise',5,'angle',10,'shift',0.02,'scale',0.05); % synthesis of positive examples during update
-    opt.n_par           = struct('overlap',0.2,'num_patches',100); % negative examples initialization/update
+    opt.p_par_init      = struct('num_closest',15,'num_warps',50,'noise',15,'angle',20,'shift',0.02,'scale',0.05); % synthesis of positive examples during initialization
+    opt.p_par_update    = struct('num_closest',10,'num_warps',10,'noise',5,'angle',10,'shift',0.02,'scale',0.05,'always_keep',500); % synthesis of positive examples during update
+    opt.n_par           = struct('overlap',0.2,'num_patches',500); % negative examples initialization/update
     % ------------------------------- END ---------------------------------------
 
 
@@ -66,7 +66,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % -----------------------------
 
     % --- Change for more plot options ----
-    opt.plot            = struct('pex',0,'nex',0,'dt',1,'confidence',1,'target',1,'replace',0,'drawoutput',3,'draw',0,'pts',1,'help', 0,'patch_rescale',1,'save',0); 
+    opt.plot            = struct('pex',0,'nex',0,'dt',1,'confidence',1,'target',0,'replace',0,'drawoutput',3,'draw',0,'pts',1,'help', 0,'patch_rescale',1,'save',1); 
     % ------------------
 
 

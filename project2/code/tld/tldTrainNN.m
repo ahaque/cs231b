@@ -33,15 +33,25 @@ function tld = tldTrainNN(pEx,nEx,tld)
         tld.pex = pEx;
         tld.nex = nEx;
     else
+        % Select the first tld.p_par_update.always_keep from history
+        num_pos_keep = min(tld.p_par_update.always_keep, num_pos_history);
+        num_neg_keep = min(tld.p_par_update.always_keep, num_neg_history);
+        
+        pex_keep = tld.pex(:, 1:num_pos_keep);
+        nex_keep = tld.nex(:, 1:num_neg_keep);
+        
         % Shuffle tld.pex and tld.pex to introduce randomness in the history
-        % Shuffle the columns
-        tld.pex = tld.pex(:, randperm(num_pos_history));
-        tld.nex = tld.nex(:, randperm(num_neg_history));
+        % Create the shuffled indices which are offsetted into the array by always_keep
+        pos_shuf_idx = randperm(num_pos_history - num_pos_keep) + num_pos_keep;
+        neg_shuf_idx = randperm(num_neg_history - num_neg_keep) + num_neg_keep;
+
+        old_pex = tld.pex(:, pos_shuf_idx);
+        old_nex = tld.nex(:, neg_shuf_idx);
 
         % Concatenate the new data first so we're more likely to keep it
-        tld.pex = [pEx tld.pex];
-        tld.nex = [nEx tld.nex];
-
+        tld.pex = cat(2, pex_keep, pEx, old_pex);
+        tld.nex = cat(2, nex_keep, nEx, old_nex);
+                
         % Select the first MAX_HISTORY_SIZE elements (or everything if the
         % concatenated array is still less than MAX_HISTORY_SIZE
         pos_end_idx = min(size(tld.pex, 2), MAX_HISTORY_SIZE);

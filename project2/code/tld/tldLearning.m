@@ -37,9 +37,11 @@ function tld = tldLearning(tld,I)
     % --------------------
     %  tld.detection_model -- update the detection with the new tld.pex, tld.nex feature vectors 
 
-    X = [tld.pEx tld.nEx]';
-    y = [ones(1, size(tld.pEx, 2)) zeros(1, size(tld.nEx, 2))]';
     
+    X = cat(2, tld.pEx{1}, tld.nEx{1})';
+
+    y = [ones(1, size(tld.pEx{1}, 2)) zeros(1, size(tld.nEx{1}, 2))]';
+
     tld.detection_model = fitcsvm(X, y);
 
     % ------------------------ (END) --------------------------

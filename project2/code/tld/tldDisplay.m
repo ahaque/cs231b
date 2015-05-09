@@ -64,6 +64,7 @@ else
     end
     
     % Target
+    % This is the annoying subimage in the upper left
     Size = 100;
     if tld.plot.target && ~isnan(tld.bb(1,i))
         bb = bb_rescale_relative(tld.bb(:,i),4*[1 1]);
@@ -71,7 +72,7 @@ else
         patch = imresize(patch,[Size Size]);
         img(1:Size,1:Size) = patch;
     end
-    %rectangle('Position',[0 0 400 400],'edgecolor','k');
+    rectangle('Position',[0 0 400 400],'edgecolor','k');
     
     % Replace
     if tld.plot.replace && ~isnan(tld.bb(1,i))
@@ -130,8 +131,13 @@ else
     % Info
     
     %string = ['#' num2str(i) ', fps:' num2str(1/toc,2) ', ' num2str(tld.control.maxbbox) '/' num2str(tld.nGrid) ', Fern: ' num2str(tld.model.thr_bern,4) ', NN: ' num2str(tld.model.thr_nn,3) '/' num2str(tld.model.thr_nn_valid,3)];
-    string = ['#' num2str(i) ', fps:' num2str(1/toc,3) ', ' num2str(tld.control.maxbbox) '/' num2str(tld.nGrid)];
-    text(10,H-10,string,'color','white','backgroundcolor','k');
+    %string = ['#' num2str(i) ', fps:' num2str(1/toc,3) ', ' num2str(tld.control.maxbbox) '/' num2str(tld.nGrid)];
+    
+    string = ['Frame: ', num2str(i)];
+    text(10,H-10,'Learning Model: SVM','color','white','backgroundcolor','k');
+    text(10,H-20,'Features: Raw Pixels','color','white','backgroundcolor','k');
+    text(10,H-30,string,'color','white','backgroundcolor','k');
+
     %if tld.control.update_detector
     %    text(10,H-30,'Learning','color','white','backgroundcolor','k');
     %end

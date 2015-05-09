@@ -36,31 +36,28 @@ function [BB Conf tld] = tldDetection(tld,I)
     % HINT: bb_overlap in bbox/ might be a useful code to prune the grid boxes before
     % running your detector. This is just a speed-up and might hurt performance.
   
-    % Fahim code
-    %{
-    % Stage 3
-    %tic
-    X = X(:, y_hat==1);
-    [conf_nn, isin] = tldNN(X, tld);
-    stage3_bboxes = stage2_bboxes(:, isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
-    unique(isin(2,:))
-    pause
-    idx_dt = idx_dt(isin(1, conf_nn > tld.model.nn_patch_confidence) == 1);
-
-    %}
-    
-    fprintf('---------------------------------\n');
+    fprintf('-----------------------------------------\n');
     fprintf('Frame: %i\n', I);
+    stage0_bboxes = tld.grid;
     
+    % Do a quick prune which dramatically reduces the candidate list size
+    % Problem: sometimes the previous frame bbox is null
+    %{
+    fprintf('Stage 0: %i\n', size(tld.grid, 2));
+    tic
+    tld.bb(:,I-1)
+    overlap = bb_overlap(tld.bb(:,I-1), tld.grid);
+    stage0_bboxes = tld.grid(1:4, overlap > 0);
+    fprintf('Stage 0a: %i\n', size(stage0_bboxes, 2))
+    %}
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 1: VARIANCE THRESHOLD
-    fprintf('Stage 0: %i\n', size(tld.grid, 2)); tic;
-     
+    
     % Get the actual patches
-    patch_variances = zeros(1, size(tld.grid, 2));    
-    patches = cell(1, size(tld.grid, 2));
-    for i=1:size(tld.grid, 2)
-        patches{i} = img_patch(img.input,tld.grid(1:4, i));
+    patch_variances = zeros(1, size(stage0_bboxes, 2));    
+    patches = cell(1, size(stage0_bboxes, 2));
+    for i=1:size(stage0_bboxes, 2)
+        patches{i} = img_patch(img.input,stage0_bboxes(1:4, i));
         this_patch = patches{i};
         patch_variances(i) = var(double(this_patch(:)));
     end
@@ -70,11 +67,10 @@ function [BB Conf tld] = tldDetection(tld,I)
     stage1_bboxes = tld.grid(1:4, idx_dt);
     patches = patches(idx_dt);
     
-    fprintf('Stage 1: %i\t', length(idx_dt)); toc;
+    fprintf('Stage 1: %i\n', length(idx_dt)); 
   
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 2A: SVM CLASSIFIER
-    tic
     % Create the feature vectors
     X = zeros(tld.pattern_size, size(stage1_bboxes, 2));
     for i=1:size(stage1_bboxes, 2)
@@ -86,12 +82,11 @@ function [BB Conf tld] = tldDetection(tld,I)
     idx_dt = idx_dt(y_hat==1);
     stage2_bboxes = tld.grid(:, idx_dt);
     
-    fprintf('Stage 2A: %i\t', length(idx_dt)); toc;
+    fprintf('Stage 2A: %i\n', length(idx_dt));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 2B: BOUNDING BOX SIZE FILTER
     % Select bboxes that are of similar size to the one in previous frame
-    tic
     s2_bbox_hw = bb_size(stage2_bboxes);
     
     % Get the size of the last bbox and find thresholds
@@ -111,14 +106,15 @@ function [BB Conf tld] = tldDetection(tld,I)
     % Remove the zero-value elements
     idx_dt(idx_dt == 0) = [];
     
-    fprintf('Stage 2B: %i\t', length(idx_dt)); toc;
+    fprintf('Stage 2B: %i\n', length(idx_dt));
+    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 2C: BOUNDING BOX LOCATION FILTER
     % Bounding box should not abruptly jump across the image
-    tic
-    stage2b_bboxes = tld.grid(:, idx_dt);
-
+    idx_dt_2c = idx_dt;
+    stage2b_bboxes = tld.grid(:, idx_dt_2c);
+    
     % Get the size of the last bbox and find thresholds
     previous_bbox_loc = tld.bb(:,1:I-1);
     min1 = previous_bbox_loc(1)*(1-tld.model.bbox_loc_delta);
@@ -129,15 +125,22 @@ function [BB Conf tld] = tldDetection(tld,I)
     % Remove candidate boxes that jump too much
     for i = 1:size(stage2b_bboxes, 2)
         if stage2b_bboxes(1,i) < min1 || stage2b_bboxes(1,i) > max1 || stage2b_bboxes(2,i) < min2 || stage2b_bboxes(2,i) > max2
-            idx_dt(i) = 0;
+            idx_dt_2c(i) = 0;
         end
     end
     
     % Remove the zero-value elements
-    idx_dt(idx_dt == 0) = [];
+    idx_dt_2c(idx_dt_2c == 0) = [];
+    
+    % Error correction
+    % Sometimes there is abrupt motion. If there is, stage 2C will kill all
+    % candidate bboxes. If that's the case, reset to stage 2B
+    if nnz(idx_dt_2c) ~= 0
+        idx_dt = idx_dt_2c;
+    end
    
-    fprintf('Stage 2C: %i\t', length(idx_dt)); toc;
-
+    fprintf('Stage 2C: %i\n', length(idx_dt));
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 3: NEAREST NEIGHBOR (this was provided by starter code)
     
@@ -151,7 +154,6 @@ function [BB Conf tld] = tldDetection(tld,I)
     dt.isin   = nan(3,num_dt); % detected (isin=1) or rejected (isin=0) by nearest neighbour classifier
     dt.patch  = nan(prod(tld.model.patchsize),num_dt); % Corresopnding patches
 
-    tic
     for i = 1:num_dt % for every remaining detection
 
         ex   = tldGetPattern(img,dt.bb(:,i),tld.model.patchsize,0,tld.model.pattern_size); % measure patch
@@ -166,8 +168,8 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     idx = dt.conf1 > tld.model.thr_nn; % get all indexes that made it through the nearest neighbour
     
-    fprintf('Stage 3: %i\t', sum(idx));
-    toc
+    fprintf('Stage 3: %i\n', sum(idx));
+    
     
     if numel(idx) > 10
       [~, sort_idx] = sort(dt.conf1, 'descend');
@@ -182,7 +184,7 @@ function [BB Conf tld] = tldDetection(tld,I)
         fprintf('Max confidence: %f, Could not find any detection (skipping) \n', max(dt.conf1));
       end
     end
-
+    toc
     %fprintf('IN detection ... \n'); keyboard;
 
     % output
