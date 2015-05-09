@@ -15,7 +15,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % TODO: change parameters to get best performance
 
 
-    min_win             = 50; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
+    min_win             = 25; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
     patchsize           = [25 25]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
     fliplr              = 0; % if set to one, the model automatically learns mirrored versions of the object (data augmentation)
     maxbbox             = 1; % fraction of evaluated bounding boxes in every frame, maxbox = 0 means detector is truned off, if you don't care about speed set it to 1
@@ -42,8 +42,8 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % number of warps on positive box, possible noise to be added, rotation of positive, shifting etc.
     % In gneral, this is data augmentation which will be really useful when training with limited examples.
 
-    opt.p_par_init      = struct('num_closest',15,'num_warps',50,'noise',15,'angle',20,'shift',0.02,'scale',0.05); % synthesis of positive examples during initialization
-    opt.p_par_update    = struct('num_closest',10,'num_warps',10,'noise',5,'angle',10,'shift',0.02,'scale',0.05,'always_keep',500); % synthesis of positive examples during update
+    opt.p_par_init      = struct('num_closest',15,'num_warps',50,'noise',30,'angle',20,'shift',0.02,'scale',0.1); % synthesis of positive examples during initialization
+    opt.p_par_update    = struct('num_closest',10,'num_warps',20,'noise',15,'angle',20,'shift',0.02,'scale',0.1,'always_keep',500); % synthesis of positive examples during update
     opt.n_par           = struct('overlap',0.2,'num_patches',500); % negative examples initialization/update
     % ------------------------------- END ---------------------------------------
 

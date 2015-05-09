@@ -90,6 +90,7 @@ if isnan(sum(tld.bb(:, I)))
 end
 
 if tld.control.update_detector && tld.valid(I) == 1
+    fprintf('Calling tldLearning\n');
     tld = tldLearning(tld,I);
 end
 

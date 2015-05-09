@@ -10,7 +10,7 @@
 function main(class_name ,num_frames_to_track, data_dir)
 
 if nargin<3
-  data_dir = 'data';
+  data_dir = '../data';
 end
 
 if nargin <2
