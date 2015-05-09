@@ -96,10 +96,10 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     % Get the size of the last bbox and find thresholds
     previous_bbox_size = bb_size(tld.bb(:,1:I-1));
-    min1 = previous_bbox_size(1)*(1-tld.model.bbox_delta);
-    max1 = previous_bbox_size(1)*(1+tld.model.bbox_delta);
-    min2 = previous_bbox_size(2)*(1-tld.model.bbox_delta);
-    max2 = previous_bbox_size(2)*(1+tld.model.bbox_delta);
+    min1 = previous_bbox_size(1)*(1-tld.model.bbox_size_delta);
+    max1 = previous_bbox_size(1)*(1+tld.model.bbox_size_delta);
+    min2 = previous_bbox_size(2)*(1-tld.model.bbox_size_delta);
+    max2 = previous_bbox_size(2)*(1+tld.model.bbox_size_delta);
     
     % Filter candidate boxes that are too large or too small
     for i = 1:size(s2_bbox_hw, 2)
@@ -110,8 +110,33 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     % Remove the zero-value elements
     idx_dt(idx_dt == 0) = [];
-   
+    
     fprintf('Stage 2B: %i\t', length(idx_dt)); toc;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % STAGE 2C: BOUNDING BOX LOCATION FILTER
+    % Bounding box should not abruptly jump across the image
+    tic
+    stage2b_bboxes = tld.grid(:, idx_dt);
+
+    % Get the size of the last bbox and find thresholds
+    previous_bbox_loc = tld.bb(:,1:I-1);
+    min1 = previous_bbox_loc(1)*(1-tld.model.bbox_loc_delta);
+    max1 = previous_bbox_loc(1)*(1+tld.model.bbox_loc_delta);
+    min2 = previous_bbox_loc(2)*(1-tld.model.bbox_loc_delta);
+    max2 = previous_bbox_loc(2)*(1+tld.model.bbox_loc_delta);
+    
+    % Remove candidate boxes that jump too much
+    for i = 1:size(stage2b_bboxes, 2)
+        if stage2b_bboxes(1,i) < min1 || stage2b_bboxes(1,i) > max1 || stage2b_bboxes(2,i) < min2 || stage2b_bboxes(2,i) > max2
+            idx_dt(i) = 0;
+        end
+    end
+    
+    % Remove the zero-value elements
+    idx_dt(idx_dt == 0) = [];
+   
+    fprintf('Stage 2C: %i\t', length(idx_dt)); toc;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 3: NEAREST NEIGHBOR (this was provided by starter code)

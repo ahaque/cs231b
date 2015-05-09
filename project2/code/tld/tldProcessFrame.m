@@ -77,6 +77,7 @@ else % if tracker is not defined
             fprintf('Re-initializing tracker 2... \n');
         end
     end
+    % If detector is not defined..
 end
 
 % ------------------------------------- (END) ----------------------------
