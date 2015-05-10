@@ -96,12 +96,12 @@ function tld = tldInit(opt,tld)
     %        from source image. Store the model in tld.detection_model.
 
     % ------------------------- (END) ----------------------------------------
-    fprintf('Training Learning Method...\n');
+    fprintf('Training Learning Model...\n');
 
     X = [pEx nEx]';
     y = [ones(1, size(pEx, 2)) zeros(1, size(nEx, 2))]';
     
-    tld.detection_model = fitcsvm(X, y);
+    tld.detection_model = trainLearner(tld, X, y);
     
     % Nearest Neightbour 
     tld.pex = [];

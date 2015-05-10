@@ -134,8 +134,8 @@ else
     %string = ['#' num2str(i) ', fps:' num2str(1/toc,3) ', ' num2str(tld.control.maxbbox) '/' num2str(tld.nGrid)];
     
     string = ['Frame: ', num2str(i)];
-    text(10,H-10,'Learning Model: SVM','color','white','backgroundcolor','k');
-    text(10,H-20,'Features: HOG','color','white','backgroundcolor','k');
+    text(10,H-10,'Learning Model: AdaBoost','color','white','backgroundcolor','k');
+    text(10,H-20,'Features: Raw Pixels','color','white','backgroundcolor','k');
     text(10,H-30,string,'color','white','backgroundcolor','k');
 
     %if tld.control.update_detector

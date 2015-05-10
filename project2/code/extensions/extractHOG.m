@@ -7,7 +7,7 @@ function [ features ] = extractHOG( patches, patchsize )
     for i = 1:size(patches, 1)
         patch = fastResize(patches{i}, patchsize);
         
-        if i >= 1
+        if i > 1
             features(:,i) = extractHOGFeatures(patch);
         else
             feat = extractHOGFeatures(patch);

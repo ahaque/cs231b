@@ -128,7 +128,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     % Create the feature vectors
     X = extractFeaturesFromPatches(tld, patches(idx_dt)); % Each column is a data point
     % Run the SVM
-    y_hat = predict(tld.detection_model, X');
+    y_hat = testLearner(tld, X');
     % Get the positive candidates
     idx_dt = idx_dt(y_hat==1);
     stage2_bboxes = tld.grid(:, idx_dt);
