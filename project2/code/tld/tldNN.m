@@ -48,7 +48,7 @@ function [conf1,isin] = tldNN(x,tld)
             for j = 1:size(tld.nex, 2)
                 nEx_dists(j) = norm(x(:,i) - tld.nex(:,j));
             end
-        elseif strcmp('raw', tld.detection_model_params.feature) == 1
+        else
             pEx_dists = distance(x(:,i), tld.pex, 1);
             nEx_dists = distance(x(:,i), tld.nex, 1);
         end

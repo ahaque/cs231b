@@ -15,8 +15,8 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % TODO: change parameters to get best performance
 
 
-    min_win             = 25; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
-    patchsize           = [25 25]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
+    min_win             = 50; % minimal size of the object's bounding box in the scanning grid, it may significantly influence speed of TLD, set it to minimal size of the object
+    patchsize           = [50 50]; % size of normalized patch in the object detector, larger sizes increase discriminability, must be square
     fliplr              = 0; % if set to one, the model automatically learns mirrored versions of the object (data augmentation)
     maxbbox             = 1; % fraction of evaluated bounding boxes in every frame, maxbox = 0 means detector is truned off, if you don't care about speed set it to 1
     update_detector     = 1; % learning on/off, of 0 detector is trained only in the first frame and then remains fixed
@@ -36,7 +36,7 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     opt.detection_model_params = struct( ...
         'bbox_size_delta', 20, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1 (this is in pixels)
         'bbox_loc_delta', 30, ... % If new bbox is more than bbox_loc_delta pixels away from last bbox center, discard (in pixels)
-        'feature', 'cnn'); % 'cnn' 'raw' 'hog' 
+        'feature', 'hog'); % 'cnn' 'raw' 'hog' 
 
     % Below, you should set some parameters for positive and negative gneration. These will be passed to
     % the positive and negative generation code. We provide some sample parameters like

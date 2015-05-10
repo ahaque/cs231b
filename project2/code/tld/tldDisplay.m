@@ -135,7 +135,7 @@ else
     
     string = ['Frame: ', num2str(i)];
     text(10,H-10,'Learning Model: SVM','color','white','backgroundcolor','k');
-    text(10,H-20,'Features: VGG16-fc7 (4096)','color','white','backgroundcolor','k');
+    text(10,H-20,'Features: Raw Pixels','color','white','backgroundcolor','k');
     text(10,H-30,string,'color','white','backgroundcolor','k');
 
     %if tld.control.update_detector
