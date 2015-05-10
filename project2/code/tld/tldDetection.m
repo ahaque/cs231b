@@ -155,10 +155,10 @@ function [BB Conf tld] = tldDetection(tld,I)
     dt.idx    = idx_dt; %find(idx_dt); % indexes of detected bounding boxes within the scanning grid
     dt.conf1  = nan(1,num_dt); % Relative Similarity (for final nearest neighbour classifier)
     dt.isin   = nan(3,num_dt); % detected (isin=1) or rejected (isin=0) by nearest neighbour classifier
-    dt.patch  = nan(prod(tld.model.patchsize),num_dt); % Corresopnding patches
+    dt.patch  = nan(size(X,1), num_dt); % Corresopnding patches
 
     
-    ex = tldGetPattern(tld, img,dt.bb); % measure patch
+    ex = X(:, y_hat==1); % measure patch
     for i = 1:num_dt % for every remaining detection
         [conf1, isin] = tldNN(ex(:,i),tld); % evaluate nearest neighbour classifier
 

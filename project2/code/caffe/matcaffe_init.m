@@ -8,13 +8,13 @@ end
 if nargin < 2 || isempty(model_def_file)
   % By default use imagenet_deploy
   %model_def_file = '../../models/bvlc_reference_caffenet/deploy.prototxt';
-  model_def_file = './models/VGG_ILSVRC_16_layers_deploy.prototxt';
+  model_def_file = './caffe/models/VGG_ILSVRC_16_layers_deploy.prototxt';
 
 end
 if nargin < 3 || isempty(model_file)
   % By default use caffe reference model
   %model_file = '../../models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel';
-  model_file = './models/VGG_ILSVRC_16_layers.caffemodel';
+  model_file = './caffe/models/VGG_ILSVRC_16_layers.caffemodel';
 end
 
 
