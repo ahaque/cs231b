@@ -1,0 +1,17 @@
+name: "VGG_ILSVRC_16_layers"
+input: "data"
+input_dim: 50
+input_dim: 3
+input_dim: 224
+input_dim: 224
+layers {
+  bottom: "data"
+  top: "conv1_1"
+  name: "conv1_1"
+  type: CONVOLUTION
+  convolution_param {
+    num_output: 64
+    pad: 1
+    kernel_size: 3
+  }
+}
