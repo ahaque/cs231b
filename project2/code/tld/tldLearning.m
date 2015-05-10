@@ -7,7 +7,7 @@ function tld = tldLearning(tld,I)
 
     % Check consistency -------------------------------------------------------
 
-    pPatt  = tldGetPattern(img,bb,tld.model.patchsize,0,tld.model.pattern_size); % get current patch
+    pPatt  = tldGetPattern(tld, img, bb); % get current patch
     [pConf1,pIsin] = tldNN(pPatt,tld); % measure similarity to model
 
     if pConf1 < tld.model.nn_patch_confidence, disp('Fast change.'); tld.valid(I) = 0; return; end % too fast change of appearance

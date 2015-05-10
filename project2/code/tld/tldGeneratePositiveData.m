@@ -35,29 +35,33 @@ function [pEx,bbP] = tldGeneratePositiveData(tld,overlap,im0,p_par)
     % Augment positive examples
     num_pos_examples = size(closest_bboxes,2)*tld.p_par_init.num_warps;
 
-    pEx = zeros(prod(tld.model.patchsize), num_pos_examples);
     bbP = zeros(size(closest_bboxes,1), num_pos_examples);
 
     idx = 1;
+    num_patches = p_par.num_closest * tld.p_par_init.num_warps;
+    patches = cell(num_patches, 1);
+
     % For each candidate patch
     for i=1:p_par.num_closest
         % Perform warps
         for w=1:tld.p_par_init.num_warps
             % Include the original at least once
             if w == 1
-                curr_patch = img_patch(tld.img{1}.input, closest_bboxes(:,i));
+                patches{idx} = img_patch(im0.input, closest_bboxes(:,i));
             % Warp the patch
             else
                 rand_seed = randn(1) * idx;
-                curr_patch = img_patch(tld.img{1}.input, closest_bboxes(:,i), rand_seed, tld.p_par_init);
+                patches{idx} = img_patch(im0.input, closest_bboxes(:,i), rand_seed, tld.p_par_init);
             end
-            pEx(:,idx) = tldPatch2Pattern(curr_patch, tld.model.patchsize);
             bbP(:,idx) = closest_bboxes(:,i);
             % Index counter
             idx = idx + 1;
         end
     end
-
+    
+    % Compute the actual features
+    pEx = extractFeaturesFromPatches(tld, patches);
+    
     % ------------------------ (END) -----------------------------------------------
 
     % pEx - the features extracted from the sampled ``positive" bounding boxes (bbP) in image

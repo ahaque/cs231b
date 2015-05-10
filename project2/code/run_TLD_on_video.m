@@ -35,7 +35,8 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % Add suitable parameters according to your choice of learning/detection algorithm.
     opt.detection_model_params = struct( ...
         'bbox_size_delta', 20, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1 (this is in pixels)
-        'bbox_loc_delta', 30); % If new bbox is more than bbox_loc_delta pixels away from last bbox center, discard (in pixels)
+        'bbox_loc_delta', 30, ... % If new bbox is more than bbox_loc_delta pixels away from last bbox center, discard (in pixels)
+        'feature', 'raw'); % 'cnn' 'raw' 'sift' 
 
     % Below, you should set some parameters for positive and negative gneration. These will be passed to
     % the positive and negative generation code. We provide some sample parameters like

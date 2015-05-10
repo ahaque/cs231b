@@ -2,4 +2,6 @@
 *.mexmaci64
 *.mexa64
 _output/
+*.jpg
 *.m~
+*.caffemodel

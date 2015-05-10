@@ -28,7 +28,7 @@ if ~bb_isdef(BB2) || bb_isout(BB2,tld.imgsize), BB2 = []; return; end % bounding
 if tld.control.maxbbox > 0 && medFB > 10, BB2 = []; return; end  % too unstable predictions
 
 % estimate confidence and validity
-patchJ   = tldGetPattern(tld.img{J},BB2,tld.model.patchsize,0,tld.model.pattern_size); % sample patch in current image
+patchJ   = tldGetPattern(tld, tld.img{J}, BB2); % sample patch in current image
 Conf = tldNN(patchJ,tld); % estimate its Conservative Similarity (considering 50% of positive patches only)
 
 % Validity

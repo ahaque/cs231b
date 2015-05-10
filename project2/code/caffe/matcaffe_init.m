@@ -3,7 +3,6 @@ function  matcaffe_init(use_gpu, model_def_file, model_file)
 % Initilize matcaffe wrapper
 
 if nargin < 1
-  % By default use CPU
   use_gpu = 1;
 end
 if nargin < 2 || isempty(model_def_file)
@@ -21,11 +20,9 @@ end
 
 if caffe('is_initialized') == 0
   if exist(model_file, 'file') == 0
-    % NOTE: you'll have to get the pre-trained ILSVRC network
     error('You need a network model file');
   end
   if ~exist(model_def_file,'file')
-    % NOTE: you'll have to get network definition
     error('You need the network prototxt definition');
   end
   % load network in TEST phase

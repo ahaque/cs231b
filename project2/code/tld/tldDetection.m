@@ -39,11 +39,11 @@ function [BB Conf tld] = tldDetection(tld,I)
     fprintf('-----------------------------------------\n');
     fprintf('Frame: %i\n', I);
     stage0_bboxes = tld.grid;
-    
+    fprintf('Stage 0: %i\n', size(tld.grid, 2));
+
     % Do a quick prune which dramatically reduces the candidate list size
     % Problem: sometimes the previous frame bbox is null
     %{
-    fprintf('Stage 0: %i\n', size(tld.grid, 2));
     tic
     tld.bb(:,I-1)
     overlap = bb_overlap(tld.bb(:,I-1), tld.grid);
@@ -55,7 +55,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     % Get the actual patches
     patch_variances = zeros(1, size(stage0_bboxes, 2));    
-    patches = cell(1, size(stage0_bboxes, 2));
+    patches = cell(size(stage0_bboxes, 2), 1);
     for i=1:size(stage0_bboxes, 2)
         patches{i} = img_patch(img.input,stage0_bboxes(1:4, i));
         this_patch = patches{i};
@@ -72,10 +72,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 2A: SVM CLASSIFIER
     % Create the feature vectors
-    X = zeros(tld.pattern_size, size(stage1_bboxes, 2));
-    for i=1:size(stage1_bboxes, 2)
-        X(:, i) = tldPatch2Pattern(patches{i}, tld.model.patchsize);
-    end
+    X = extractFeaturesFromPatches(tld, patches); % Each column is a data point
     % Run the SVM
     y_hat = predict(tld.detection_model, X');
     % Get the positive candidates
@@ -162,16 +159,15 @@ function [BB Conf tld] = tldDetection(tld,I)
     dt.isin   = nan(3,num_dt); % detected (isin=1) or rejected (isin=0) by nearest neighbour classifier
     dt.patch  = nan(prod(tld.model.patchsize),num_dt); % Corresopnding patches
 
+    
+    ex = tldGetPattern(tld, img,dt.bb); % measure patch
     for i = 1:num_dt % for every remaining detection
-
-        ex   = tldGetPattern(img,dt.bb(:,i),tld.model.patchsize,0,tld.model.pattern_size); % measure patch
-        [conf1, isin] = tldNN(ex,tld); % evaluate nearest neighbour classifier
+        [conf1, isin] = tldNN(ex(:,i),tld); % evaluate nearest neighbour classifier
 
         % fill detection structure
         dt.conf1(i)   = conf1;
         dt.isin(:,i)  = isin;
-        dt.patch(:,i) = ex;
-
+        dt.patch(:,i) = ex(:,i);
     end
     
     idx = dt.conf1 > tld.model.thr_nn; % get all indexes that made it through the nearest neighbour

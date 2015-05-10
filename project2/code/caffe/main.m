@@ -1,13 +1,13 @@
 
 list_im = {'0001.jpg','0134.jpg'};
 
-patches = cell(600,1);
+patches = cell(10000,1);
 
 idx = 1;
 for i = 1:length(list_im)
    img = imread(list_im{i}); 
    % Select random 25x25 patch
-   for j = 1:300
+   for j = 1:5000
        x = randi([1, size(img, 2)-61],1,1);
        y = randi([1, size(img, 1)-61],1,1);
        patches{idx} = img(y:y+59, x:x+59);
@@ -30,7 +30,7 @@ tic
 num_images = size(patches, 1);
 
 IMAGE_DIM = 224;
-batch_size = 50;
+batch_size = 190;
 FEATURE_DIM = 4096; % This can come from TLD.model
 
 d = load('ilsvrc_2012_mean');
@@ -51,6 +51,7 @@ end
 
 scores = zeros(FEATURE_DIM, num_images, 'single');
 num_batches = ceil(num_images/batch_size);
+fprintf('Num Batches: %i\n', num_batches);
 initic = tic;
 for bb = 1 : num_batches
     fprintf('Starting batch %i...\n',bb);
@@ -67,6 +68,6 @@ for bb = 1 : num_batches
     scores(:,range) = output_data(:,mod(range-1,batch_size)+1);
 end
 toc(initic);
-size(scores)
+size(scores);
 
 

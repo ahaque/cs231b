@@ -33,7 +33,7 @@ function [nEx,bbN] = tldGenerateNegativeData(tld,I,bb,im0,n_par)
     % nEx - the features extracted from the sampled ``negative" bounding boxes (bbN) in image
 
     if ~isempty(bbN)
-      nEx = tldGetPattern(im0,bbN,tld.model.patchsize, 0, tld.model.pattern_size);
+      nEx = tldGetPattern(tld, im0, bbN);
     end
 
 end
