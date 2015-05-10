@@ -38,11 +38,33 @@ function [conf1,isin] = tldNN(x,tld)
     % HINT: Make use of distance function in mex folder to make things faster
 
     for i=1:size(x, 2)
-        pEx_dists = distance(x(:,i), tld.pex, 1);
-        nEx_dists = distance(x(:,i), tld.nex, 1);
+
+        if strcmp('cnn', tld.detection_model_params.feature) == 1
+            pEx_dists = zeros(size(tld.pex, 2), 1);
+            for j = 1:size(tld.pex, 2)
+                pEx_dists(j) = norm(x(:,i) - tld.pex(:,j));
+            end
+            nEx_dists = zeros(size(tld.nex, 2), 1);
+            for j = 1:size(tld.nex, 2)
+                nEx_dists(j) = norm(x(:,i) - tld.nex(:,j));
+            end
+        elseif strcmp('raw', tld.detection_model_params.feature) == 1
+            pEx_dists = distance(x(:,i), tld.pex, 1);
+            nEx_dists = distance(x(:,i), tld.nex, 1);
+        end
+        %fprintf('Num Nan: pEx: %i. nEx: %i\n', sum(isnan(pEx_dists)), sum(isnan(nEx_dists)));
+        %fprintf('Num Nan: x: %i. tld.pex: %i. tld.nex\n', sum(isnan(x(:,i))), sum(isnan(tld.pex)), sum(isnan(tld.nex)));
 
         [pEx_value, pEx_index] = max(pEx_dists);
         [nEx_value, ~] = max(nEx_dists);
+        
+        if isnan(pEx_value)
+            pEx_value = 0;
+        end
+        
+        if isnan(nEx_value)
+            nEx_value = 0;
+        end
         
         isin(2,i) = pEx_index;
         if pEx_value > tld.model.ncc_thesame
@@ -54,10 +76,10 @@ function [conf1,isin] = tldNN(x,tld)
             isin(1,i) = nan;
             isin(3,i) = 1;
         end
-        conf1(i) = (1 - nEx_value)/(2 - nEx_value - pEx_value);
-        %[pEx_value, nEx_value, conf1(i), tld.model.thr_nn]
-    end
 
+        conf1(i) = (1 - nEx_value)/(2 - nEx_value - pEx_value);
+    end
+    
    % ----------------------- (END) -------------------------------
 
    

@@ -41,15 +41,6 @@ function [BB Conf tld] = tldDetection(tld,I)
     stage0_bboxes = tld.grid;
     fprintf('Stage 0: %i\n', size(tld.grid, 2));
 
-    % Do a quick prune which dramatically reduces the candidate list size
-    % Problem: sometimes the previous frame bbox is null
-    %{
-    tic
-    tld.bb(:,I-1)
-    overlap = bb_overlap(tld.bb(:,I-1), tld.grid);
-    stage0_bboxes = tld.grid(1:4, overlap > 0);
-    fprintf('Stage 0a: %i\n', size(stage0_bboxes, 2))
-    %}
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 1: VARIANCE THRESHOLD
     
@@ -159,19 +150,18 @@ function [BB Conf tld] = tldDetection(tld,I)
 
     
     ex = X(:, y_hat==1); % measure patch
-    for i = 1:num_dt % for every remaining detection
-        [conf1, isin] = tldNN(ex(:,i),tld); % evaluate nearest neighbour classifier
 
-        % fill detection structure
-        dt.conf1(i)   = conf1;
-        dt.isin(:,i)  = isin;
-        dt.patch(:,i) = ex(:,i);
-    end
+    [conf1, isin] = tldNN(ex,tld); % evaluate nearest neighbour classifier
+    conf1(isnan(conf1)) = 0;
+    
+    % fill detection structure
+    dt.conf1   = conf1;
+    dt.isin  = isin;
+    dt.patch = ex;
     
     idx = dt.conf1 > tld.model.thr_nn; % get all indexes that made it through the nearest neighbour
     
     fprintf('Stage 3: %i\n', sum(idx));
-    
     
     if numel(idx) > 10
       [~, sort_idx] = sort(dt.conf1, 'descend');

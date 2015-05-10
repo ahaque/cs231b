@@ -2,9 +2,7 @@
 % This file is part of TLD.
 
 function tld = tldTrainNN(pEx,nEx,tld)
-    nP = size(pEx,2); % get the number of positive example 
-    nN = size(nEx,2); % get the number of negative examples
-    
+
     % ------------------ (BEGIN) --------------------
     % TODO: Update tld.pex and tld.nex
 

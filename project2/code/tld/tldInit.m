@@ -115,7 +115,7 @@ function tld = tldInit(opt,tld)
 
     % Nearest neighbor
     conf_nn = tldNN(nEx2,tld);
-    %tld.model.thr_nn = max(tld.model.thr_nn,max(conf_nn));
-    %tld.model.thr_nn_valid = max(tld.model.thr_nn_valid,tld.model.thr_nn);
+    tld.model.thr_nn = max(tld.model.thr_nn,max(conf_nn));
+    tld.model.thr_nn_valid = max(tld.model.thr_nn_valid,tld.model.thr_nn);
 
 end
