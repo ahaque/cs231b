@@ -57,7 +57,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     patch_variances = zeros(1, size(stage0_bboxes, 2));    
     patches = cell(size(stage0_bboxes, 2), 1);
     for i=1:size(stage0_bboxes, 2)
-        patches{i} = img_patch(img.input,stage0_bboxes(1:4, i));
+        patches{i} = img_patch(img.input, stage0_bboxes(1:4, i));
         this_patch = patches{i};
         patch_variances(i) = var(double(this_patch(:)));
     end
@@ -65,26 +65,13 @@ function [BB Conf tld] = tldDetection(tld,I)
     % Filter based on variance
     idx_dt = find(patch_variances > (tld.var/2));
     stage1_bboxes = tld.grid(1:4, idx_dt);
-    patches = patches(idx_dt);
     
     fprintf('Stage 1: %i\n', length(idx_dt)); 
-  
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % STAGE 2A: SVM CLASSIFIER
-    % Create the feature vectors
-    X = extractFeaturesFromPatches(tld, patches); % Each column is a data point
-    % Run the SVM
-    y_hat = predict(tld.detection_model, X');
-    % Get the positive candidates
-    idx_dt = idx_dt(y_hat==1);
-    stage2_bboxes = tld.grid(:, idx_dt);
-    
-    fprintf('Stage 2A: %i\n', length(idx_dt));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 2B: BOUNDING BOX SIZE FILTER
     % Select bboxes that are of similar size to the one in previous frame
-    s2_bbox_hw = bb_size(stage2_bboxes);
+    s2_bbox_hw = bb_size(stage1_bboxes);
 
     % Get the size of the last bbox and find thresholds
     previous_bbox_size = bb_size(tld.bb(:,I-1));
@@ -105,8 +92,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     fprintf('Stage 2B: %i\n', length(idx_dt));
     
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 2C: BOUNDING BOX LOCATION FILTER
     % Bounding box should not abruptly jump across the image
     idx_dt_2c = idx_dt;
@@ -145,6 +131,18 @@ function [BB Conf tld] = tldDetection(tld,I)
     end
    
     fprintf('Stage 2C: %i\n', length(idx_dt));
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % STAGE 2A: SVM CLASSIFIER
+    % Create the feature vectors
+    X = extractFeaturesFromPatches(tld, patches(idx_dt)); % Each column is a data point
+    % Run the SVM
+    y_hat = predict(tld.detection_model, X');
+    % Get the positive candidates
+    idx_dt = idx_dt(y_hat==1);
+    stage2_bboxes = tld.grid(:, idx_dt);
+    
+    fprintf('Stage 2A: %i\n', length(idx_dt));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE 3: NEAREST NEIGHBOR (this was provided by starter code)
