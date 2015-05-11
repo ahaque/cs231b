@@ -34,8 +34,8 @@ if varargin{1}==0
         %set(gcf,'Position',[100 100 2*[320 240]+1]);
 
         % Info
-        string = [num2str(tld.control.maxbbox) '/' num2str(tld.nGrid)];
-        text(10,200,string,'color','white');
+        frame_ = [num2str(tld.control.maxbbox) '/' num2str(tld.nGrid)];
+        text(10,200,frame_,'color','white');
     end
     
     
@@ -133,10 +133,27 @@ else
     %string = ['#' num2str(i) ', fps:' num2str(1/toc,2) ', ' num2str(tld.control.maxbbox) '/' num2str(tld.nGrid) ', Fern: ' num2str(tld.model.thr_bern,4) ', NN: ' num2str(tld.model.thr_nn,3) '/' num2str(tld.model.thr_nn_valid,3)];
     %string = ['#' num2str(i) ', fps:' num2str(1/toc,3) ', ' num2str(tld.control.maxbbox) '/' num2str(tld.nGrid)];
     
-    string = ['Frame: ', num2str(i)];
-    text(10,H-10,'Learning Model: AdaBoost','color','white','backgroundcolor','k');
-    text(10,H-20,'Features: Raw Pixels','color','white','backgroundcolor','k');
-    text(10,H-30,string,'color','white','backgroundcolor','k');
+    frame_string = ['Frame: ', num2str(i)];
+    
+    model_string = '';
+    if strcmp('svm', tld.detection_model_params.learning_model) == 1
+        model_string = 'Learning Model: SVM';
+    elseif strcmp('adaboost', tld.detection_model_params.learning_model) == 1
+        model_string = 'Learning Model: AdaBoost';
+    end
+    
+    feature_string = '';
+    if strcmp('cnn', tld.detection_model_params.feature) == 1
+       feature_string = 'Features: VGG16-fc7 (4096)'; 
+    elseif strcmp('hog', tld.detection_model_params.feature) == 1
+       feature_string = 'Features: HOG'; 
+    elseif strcmp('raw', tld.detection_model_params.feature) == 1
+       feature_string = 'Features: Raw Pixels'; 
+    end
+    
+    text(10,H-10, model_string,'color','white','backgroundcolor','k');
+    text(10,H-20, feature_string,'color','white','backgroundcolor','k');
+    text(10,H-30, frame_string,'color','white','backgroundcolor','k');
 
     %if tld.control.update_detector
     %    text(10,H-30,'Learning','color','white','backgroundcolor','k');
