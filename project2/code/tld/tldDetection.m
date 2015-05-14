@@ -139,14 +139,17 @@ function [BB Conf tld] = tldDetection(tld,I)
     % STAGE D: SVM CLASSIFIER
     % Create the feature vectors
     X = extractFeaturesFromPatches(tld, patches(patch_var_idx)); % Each column is a data point
-    % Run the SVM
-    y_hat = testLearner(tld, X');
-    % Get the positive candidates
-    idx_dt_temp = idx_dt(y_hat==1);
     
-    % In case this stage deletes all bboxes
-    if ~isempty(idx_dt_temp)
-        idx_dt = idx_dt_temp;
+    if size(X, 1) > 0
+        % Run the SVM
+        y_hat = testLearner(tld, X');
+        % Get the positive candidates
+        idx_dt_temp = idx_dt(y_hat==1);
+
+        % In case this stage deletes all bboxes
+        if ~isempty(idx_dt_temp)
+            idx_dt = idx_dt_temp;
+        end
     end
     
     fprintf('Stage D: %i\n', length(idx_dt));
@@ -164,16 +167,17 @@ function [BB Conf tld] = tldDetection(tld,I)
     dt.isin   = nan(3,num_dt); % detected (isin=1) or rejected (isin=0) by nearest neighbour classifier
     dt.patch  = nan(size(X,1), num_dt); % Corresopnding patches
 
-    
-    ex = X(:, y_hat==1); % measure patch
+    if size(X, 1) > 0
+        ex = X(:, y_hat==1); % measure patch
 
-    [conf1, isin] = tldNN(ex,tld); % evaluate nearest neighbour classifier
-    conf1(isnan(conf1)) = 0;
-    
-    % fill detection structure
-    dt.conf1   = conf1;
-    dt.isin  = isin;
-    dt.patch = ex;
+        [conf1, isin] = tldNN(ex,tld); % evaluate nearest neighbour classifier
+        conf1(isnan(conf1)) = 0;
+
+        % fill detection structure
+        dt.conf1   = conf1;
+        dt.isin  = isin;
+        dt.patch = ex;
+    end
     
     idx = dt.conf1 > tld.model.thr_nn; % get all indexes that made it through the nearest neighbour
 
