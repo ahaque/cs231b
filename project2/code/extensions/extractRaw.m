@@ -9,6 +9,7 @@ function [ features ] = extractRaw( patches, patchsize )
     for i = 1:size(patches, 1)
         patch = fastResize(patches{i}, patchsize);
         patch = patch - mean(double(patch(:)));
+        patch = patch / std(patch(:));
         features(:,i) = reshape(patch, [numel(patch), 1]);
     end
 end

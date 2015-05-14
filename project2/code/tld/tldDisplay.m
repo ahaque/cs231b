@@ -151,9 +151,9 @@ else
        feature_string = 'Features: Raw Pixels'; 
     end
     
-    text(10,H-30, model_string,'color','white','backgroundcolor','k');
-    text(10,H-51, feature_string,'color','white','backgroundcolor','k');
-    text(10,H-72, frame_string,'color','white','backgroundcolor','k');
+    text(10,H-20, model_string,'color','white','backgroundcolor','k');
+    text(10,H-31, feature_string,'color','white','backgroundcolor','k');
+    text(10,H-42, frame_string,'color','white','backgroundcolor','k');
 
     %if tld.control.update_detector
     %    text(10,H-30,'Learning','color','white','backgroundcolor','k');

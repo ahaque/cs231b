@@ -29,7 +29,7 @@ TR = 1; if isempty(tBB), TR = 0; end % is tracker defined?
 %       around with different ways of combining the detector and tracker.
 %       Choosing a good startegy will greatly improve performance.
 
-[TR DT]
+%[TR DT]
 if TR % if tracker is defined
     
     % copy tracker's result

@@ -44,9 +44,9 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % number of warps on positive box, possible noise to be added, rotation of positive, shifting etc.
     % In gneral, this is data augmentation which will be really useful when training with limited examples.
 
-    opt.p_par_init      = struct('num_closest',10,'num_warps',20,'noise',20,'angle',20,'shift',0.1,'scale', 0.2); % synthesis of positive examples during initialization
-    opt.p_par_update    = struct('num_closest',10,'num_warps',20,'noise',10,'angle',20,'shift',0.1,'scale',0.2,'always_keep',100); % synthesis of positive examples during update
-    opt.n_par           = struct('overlap',0.2,'num_patches',200); % negative examples initialization/update
+    opt.p_par_init      = struct('num_closest',10,'num_warps',50,'noise',20,'angle',20,'shift',0.1,'scale', 0.2); % synthesis of positive examples during initialization
+    opt.p_par_update    = struct('num_closest',10,'num_warps',20,'noise',10,'angle',20,'shift',0.1,'scale',0.2,'always_keep',500); % synthesis of positive examples during update
+    opt.n_par           = struct('overlap',0.2,'num_patches',500); % negative examples initialization/update
     % ------------------------------- END ---------------------------------------
 
 
