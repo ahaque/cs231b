@@ -35,18 +35,19 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     % Add suitable parameters according to your choice of learning/detection algorithm.
     opt.detection_model_params = struct( ...
         'bbox_size_delta', 20, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1 (this is in pixels)
-        'bbox_loc_delta', 30, ... % If new bbox is more than bbox_loc_delta pixels away from last bbox center, discard (in pixels)
+        'bbox_loc_delta', 30, ... % If new bbox is more than bbox_loc_delta pixels away from last bbox center  (in pixels)
         'feature', 'raw', ... % 'cnn' 'raw' 'hog'
-        'learning_model', 'svm'); % 'svm' 'adaboost'
+        'learning_model', 'svm', ... % 'svm' 'adaboost'
+        'max_history_size', 1000 ); % How many examples to keep in NN
 
     % Below, you should set some parameters for positive and negative gneration. These will be passed to
     % the positive and negative generation code. We provide some sample parameters like
     % number of warps on positive box, possible noise to be added, rotation of positive, shifting etc.
     % In gneral, this is data augmentation which will be really useful when training with limited examples.
 
-    opt.p_par_init      = struct('num_closest',10,'num_warps',50,'noise',20,'angle',20,'shift',0.1,'scale', 0.2); % synthesis of positive examples during initialization
-    opt.p_par_update    = struct('num_closest',10,'num_warps',20,'noise',10,'angle',20,'shift',0.1,'scale',0.2,'always_keep',500); % synthesis of positive examples during update
-    opt.n_par           = struct('overlap',0.2,'num_patches',500); % negative examples initialization/update
+    opt.p_par_init      = struct('num_closest',10,'num_warps',20,'noise',5,'angle',30,'shift',0.03,'scale',0.1,'always_keep',200); % synthesis of positive examples during initialization
+    opt.p_par_update    = struct('num_closest',10,'num_warps',10,'noise',5,'angle',20,'shift',0.03,'scale',0.1); % synthesis of positive examples during update
+    opt.n_par           = struct('overlap',0.2,'num_patches',200); % negative examples initialization/update
     % ------------------------------- END ---------------------------------------
 
 

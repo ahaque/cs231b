@@ -19,7 +19,7 @@ function tld = tldTrainNN(pEx,nEx,tld)
     %                      Naively extending tld.pex and tld.nex with all of pEx and nEx will
     %                      blow up computation. Choose wisely!
     
-    MAX_HISTORY_SIZE = 2000;
+    MAX_HISTORY_SIZE = tld.detection_model_params.max_history_size;
     num_pos_history = size(tld.pex, 2);
     num_neg_history = size(tld.nex, 2);
     
@@ -32,8 +32,8 @@ function tld = tldTrainNN(pEx,nEx,tld)
         tld.nex = nEx;
     else
         % Select the first tld.p_par_update.always_keep from history
-        num_pos_keep = min(tld.p_par_update.always_keep, num_pos_history);
-        num_neg_keep = min(tld.p_par_update.always_keep, num_neg_history);
+        num_pos_keep = min(tld.p_par_init.always_keep, num_pos_history);
+        num_neg_keep = min(0, num_neg_history);
         
         pex_keep = tld.pex(:, 1:num_pos_keep);
         nex_keep = tld.nex(:, 1:num_neg_keep);

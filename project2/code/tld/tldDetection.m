@@ -35,9 +35,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     %          tld.grid(1:4, idx_dt) provides the seltected object boxes based on the detector.
     % HINT: bb_overlap in bbox/ might be a useful code to prune the grid boxes before
     % running your detector. This is just a speed-up and might hurt performance.
-  
-    SAFETY_RESET = 1;
-    
+      
     fprintf('-----------------------------------------\n');
     fprintf('Frame: %i\n', I);
     stageA_bboxes = tld.grid;
@@ -76,16 +74,16 @@ function [BB Conf tld] = tldDetection(tld,I)
     passedA = pass1 & pass2 & pass3 & pass4 & pass5 & pass6 & pass7 & pass8;
     idx_dt_temp = find(passedA == 1);
     % In case this stage deletes all bboxes
-    if SAFETY_RESET
-        if ~isempty(idx_dt_temp) 
-            idx_dt = idx_dt_temp;
-        else
-            fprintf('Safety Reset A\n');
-        end
-    else
+    if ~isempty(idx_dt_temp)
         idx_dt = idx_dt_temp;
     end
-   
+    
+    %{
+    overlap = bb_overlap(previous_bbox_loc, tld.grid);
+    sorted = sort(overlap, 'descend');
+    overlap_thresh = sorted(int32(length(overlap)*0.1))
+    idx_dt = find(overlap > overlap_thresh);
+    %}
     fprintf('Stage A (Location): %i\n', length(idx_dt));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -94,11 +92,12 @@ function [BB Conf tld] = tldDetection(tld,I)
     bbox_hw = bb_size(tld.grid(:, idx_dt));
 
     % Get the size of the last bbox and find thresholds
+    del = tld.detection_model_params.bbox_size_delta;
     previous_bbox_size = bb_size(tld.bb(:,I-1));
-    min1 = previous_bbox_size(1) - tld.detection_model_params.bbox_size_delta;
-    max1 = previous_bbox_size(1) + tld.detection_model_params.bbox_size_delta;
-    min2 = previous_bbox_size(2) - tld.detection_model_params.bbox_size_delta;
-    max2 = previous_bbox_size(2) + tld.detection_model_params.bbox_size_delta;
+    min1 = previous_bbox_size(1) - del;
+    max1 = previous_bbox_size(1) + del;
+    min2 = previous_bbox_size(2) - del;
+    max2 = previous_bbox_size(2) + del;
     
     pass1 = bbox_hw(1,:) > min1;
     pass2 = bbox_hw(1,:) < max1;
@@ -107,13 +106,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     passedB = pass1 & pass2 & pass3 & pass4;
     idx_dt_temp = idx_dt(passedB);
-    if SAFETY_RESET
-        if ~isempty(idx_dt_temp) 
-            idx_dt = idx_dt_temp;
-        else
-            fprintf('Safety Reset B\n');
-        end
-    else
+    if ~isempty(idx_dt_temp)
         idx_dt = idx_dt_temp;
     end
     
@@ -135,7 +128,10 @@ function [BB Conf tld] = tldDetection(tld,I)
     
     % Filter based on variance
     patch_var_idx = patch_variances > (tld.var/2);
-    idx_dt = idx_dt(patch_var_idx);
+    idx_dt_temp = idx_dt(patch_var_idx);
+    if ~isempty(idx_dt_temp)
+        idx_dt = idx_dt_temp;
+    end
     
     fprintf('Stage C (Variance): %i\n', length(idx_dt)); 
     
@@ -149,13 +145,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     idx_dt_temp = idx_dt(y_hat==1);
     
     % In case this stage deletes all bboxes
-    if SAFETY_RESET
-        if ~isempty(idx_dt_temp) 
-            idx_dt = idx_dt_temp;
-        else
-            fprintf('Safety Reset C\n');
-        end
-    else
+    if ~isempty(idx_dt_temp)
         idx_dt = idx_dt_temp;
     end
     

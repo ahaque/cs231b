@@ -3,7 +3,7 @@
 % Input: patches: cell array of size n x 1 containing a 2D matrix for each patch
 % Output: features: a matrix where the ith column is the features for patch i
 function [ features ] = extractHOG( patches, patchsize )
-        
+    features = [];
     for i = 1:size(patches, 1)
         patch = fastResize(patches{i}, patchsize);
         

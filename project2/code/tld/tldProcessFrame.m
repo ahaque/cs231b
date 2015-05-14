@@ -41,7 +41,7 @@ if TR % if tracker is defined
     if DT % if detections are also defined
         
         [cBB,cConf,cSize] = bb_cluster_confidence(dBB,dConf); % cluster detections
-        id = bb_overlap(tld.bb(:,I),cBB) < 0.5 & cConf > tld.conf(I); % get indexes of all clusters that are far from tracker and are more confident then the tracker
+        id = bb_overlap(tld.bb(:,I),cBB) < 0.7 & cConf > tld.conf(I); % get indexes of all clusters that are far from tracker and are more confident then the tracker
         
         if sum(id) == 1 % if there is ONE such a cluster, re-initialize the tracker
             

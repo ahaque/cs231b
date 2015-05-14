@@ -7,8 +7,10 @@ function [ features ] = extractFeaturesFromPatches( tld, patches )
         features = extractRaw(patches, tld.model.patchsize);
     elseif strcmp('hog', tld.detection_model_params.feature) == 1
         features = extractHOG(patches, tld.model.patchsize);
-    elseif strcmp('brisk', tld.detection_model_params.feature) == 1
-        features = extractBRISK(patches, tld.model.patchsize);
+    elseif strcmp('rawhog', tld.detection_model_params.feature) == 1
+        a = extractHOG(patches, tld.model.patchsize);
+        b = extractRaw(patches, tld.model.patchsize);
+        features = [a; b];
     end
     
 end

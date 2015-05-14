@@ -24,4 +24,3 @@ rand('state',0);
 randn('state',0);
 close all;
 addpath(genpath('.'));
-tic;

@@ -149,6 +149,8 @@ else
        feature_string = 'Features: HOG'; 
     elseif strcmp('raw', tld.detection_model_params.feature) == 1
        feature_string = 'Features: Raw Pixels'; 
+    elseif strcmp('rawhog', tld.detection_model_params.feature) == 1
+       feature_string = 'Features: Raw+HOG'; 
     end
     
     text(10,H-20, model_string,'color','white','backgroundcolor','k');
@@ -194,7 +196,6 @@ else
     
     
     drawnow;
-    tic;
     
     % Save
     %if tld.plot.save == 1

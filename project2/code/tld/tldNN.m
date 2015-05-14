@@ -71,7 +71,7 @@ function [conf1,isin] = tldNN(x,tld)
             % NN is a positive patch
             isin(1,i) = 1;
             isin(3,i) = nan;
-        else %if nEx_value > tld.model.ncc_thesame
+        elseif nEx_value > tld.model.ncc_thesame
             % Else negative
             isin(1,i) = nan;
             isin(3,i) = 1;
