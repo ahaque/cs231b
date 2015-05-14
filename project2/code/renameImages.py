@@ -7,13 +7,13 @@ import numpy as np
 ##################################################################
 # BEGIN REQUIRED INPUTS
 # Which video sequence to run
-DATASET = "Lab"
+DATASET = "Feifei"
 
 # Full path location to the original dataset directory
-DATASET_DIR = "/home/albert/Github/cs231b/project2/data"
+DATASET_DIR = "/Users/albert/Github/cs231b/project2/data"
 
 # File extension of input images
-DATASET_EXT = ".jpg"
+DATASET_EXT = ".jpeg"
 
 #
 # END REQUIRED INPUTS

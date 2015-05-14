@@ -19,7 +19,7 @@ function tld = tldTrainNN(pEx,nEx,tld)
     %                      Naively extending tld.pex and tld.nex with all of pEx and nEx will
     %                      blow up computation. Choose wisely!
     
-    MAX_HISTORY_SIZE = 2000;
+    MAX_HISTORY_SIZE = 500;
     num_pos_history = size(tld.pex, 2);
     num_neg_history = size(tld.nex, 2);
     
