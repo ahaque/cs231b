@@ -27,19 +27,18 @@ input_param_names = cell(nArgs/2, 1);
 idx = 1;
 for pair = reshape(varargin,2,[])
    paramName = lower(pair{1});
-   paramValue = lower(pair{2});
    input_param_names{idx} = paramName;
    switch(paramName)
        case 'video'
-           options.video_name = paramValue;
+           options.video_name = pair{2};
        case 'feature'
-           options.feature = paramValue;
+           options.feature = lower(pair{2});
        case 'classifier'
-           options.classifier = paramValue;
+           options.classifier = lower(pair{2});
        case 'data_dir'
-           options.data_dir = paramValue;
+           options.data_dir = pair{2};
        case 'num_frames_to_track'
-           options.num_frames_to_track = paramValue;
+           options.num_frames_to_track = pair{2};
    end
    idx = idx + 1;
 end
@@ -56,6 +55,9 @@ for i = 1:length(required_params);
 end
 
 if exit == 1
+    fprintf('\tExample matlab commands:\n');
+    fprintf('\t   main(''video'',''Dancer2'',''feature'',''raw'',''classifier'',''svm'')\n');
+    fprintf('\t   main(''video'',''Dancer2'',''feature'',''raw'',''classifier'',''svm'',''num_frames_to_track'',20)\n');
     return
 end
 

@@ -42,7 +42,7 @@ function run_TLD_on_video(options, video_image_directory, output_directory, grou
     
     fprintf('Running with the following settings:\n');
     fprintf('\tVideo Sequence: %s\n', options.video_name);
-    fprintf('\tNum Frames to Track: %s\n', options.num_frames_to_track);
+    fprintf('\tNum Frames to Track: %i\n', options.num_frames_to_track);
     fprintf('\tFeature: %s\n', options.feature);
     fprintf('\tLearning Model: %s\n', options.classifier);
 
