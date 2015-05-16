@@ -1,5 +1,4 @@
 .DS_Store
-*.mexmaci64
 _output/
 code/_output/
 *.m~
