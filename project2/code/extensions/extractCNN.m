@@ -1,4 +1,11 @@
-function [ features ] = extractCNN( patches )
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CS 231B NOTE: This code was written by Albert/Fahim with parts borrowed
+% from the Caffe Github repository
+% https://github.com/BVLC/caffe
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [ features ] = extractCNN( tld, patches )
     % patches = cell array of size 1 x n
     %           where each cell contains a PATCH_SIZE x PATCH_SIZE matrix
 
@@ -42,7 +49,11 @@ function [ features ] = extractCNN( patches )
         scores(:,range) = output_data(:,mod(range-1,batch_size)+1);
     end
     
-    features = scores;
-    
+    % Bug with AdaBoost. Need to keep feature vector size somewhat small
+    if strcmp('adaboost', tld.detection_model_params.learning_model) == 1
+        features = scores(1:390,:);
+    else
+        features = scores;
+    end
 end
 

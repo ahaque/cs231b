@@ -36,11 +36,11 @@ function [BB Conf tld] = tldDetection(tld,I)
     % HINT: bb_overlap in bbox/ might be a useful code to prune the grid boxes before
     % running your detector. This is just a speed-up and might hurt performance.
       
-    fprintf('-----------------------------------------\n');
-    fprintf('Frame: %i\n', I);
+    %fprintf('-----------------------------------------\n');
+    %fprintf('Frame: %i\n', I);
     stageA_bboxes = tld.grid;
     idx_dt = 1:size(tld.grid, 2);
-    fprintf('Stage 0: %i\n', size(tld.grid, 2));
+    %fprintf('Stage 0: %i\n', size(tld.grid, 2));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE A: BOUNDING BOX LOCATION FILTER
@@ -77,14 +77,8 @@ function [BB Conf tld] = tldDetection(tld,I)
     if ~isempty(idx_dt_temp)
         idx_dt = idx_dt_temp;
     end
-    
-    %{
-    overlap = bb_overlap(previous_bbox_loc, tld.grid);
-    sorted = sort(overlap, 'descend');
-    overlap_thresh = sorted(int32(length(overlap)*0.1))
-    idx_dt = find(overlap > overlap_thresh);
-    %}
-    fprintf('Stage A (Location): %i\n', length(idx_dt));
+
+    %fprintf('Stage A (Location): %i\n', length(idx_dt));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE B: BOUNDING BOX SIZE FILTER
@@ -110,7 +104,7 @@ function [BB Conf tld] = tldDetection(tld,I)
         idx_dt = idx_dt_temp;
     end
     
-    fprintf('Stage B (Size): %i\n', length(idx_dt));
+    %fprintf('Stage B (Size): %i\n', length(idx_dt));
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE C: VARIANCE THRESHOLD
@@ -133,15 +127,14 @@ function [BB Conf tld] = tldDetection(tld,I)
         idx_dt = idx_dt_temp;
     end
     
-    fprintf('Stage C (Variance): %i\n', length(idx_dt)); 
+    %fprintf('Stage C (Variance): %i\n', length(idx_dt)); 
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % STAGE D: SVM CLASSIFIER
+    % STAGE D: CLASSIFIER
     % Create the feature vectors
     X = extractFeaturesFromPatches(tld, patches(patch_var_idx)); % Each column is a data point
     
     if size(X, 1) > 0
-        % Run the SVM
         y_hat = testLearner(tld, X');
         % Get the positive candidates
         idx_dt_temp = idx_dt(y_hat==1);
@@ -152,7 +145,7 @@ function [BB Conf tld] = tldDetection(tld,I)
         end
     end
     
-    fprintf('Stage D: %i\n', length(idx_dt));
+    %fprintf('Stage D: %i\n', length(idx_dt));
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % STAGE E: NEAREST NEIGHBOR (this was provided by starter code)
@@ -182,7 +175,7 @@ function [BB Conf tld] = tldDetection(tld,I)
     idx = dt.conf1 > tld.model.thr_nn; % get all indexes that made it through the nearest neighbour
 
     
-    fprintf('Stage E: %i\n', sum(idx));
+    %fprintf('Stage E: %i\n', sum(idx));
     
     if numel(idx) > 10
       [~, sort_idx] = sort(dt.conf1, 'descend');
@@ -194,7 +187,7 @@ function [BB Conf tld] = tldDetection(tld,I)
       if (I <=2)
         [~, idx] = max(dt.conf1);
       else
-        fprintf('Max confidence: %f, Could not find any detection (skipping) \n', max(dt.conf1));
+        %fprintf('Max confidence: %f, Could not find any detection (skipping) \n', max(dt.conf1));
       end
     end
     

@@ -1,4 +1,10 @@
 function  matcaffe_init(use_gpu, model_def_file, model_file)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CS 231B NOTE: This code came from the Caffe github repository
+% https://github.com/BVLC/caffe
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % matcaffe_init(model_def_file, model_file, use_gpu)
 % Initilize matcaffe wrapper
 

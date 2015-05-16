@@ -1,7 +1,7 @@
 % Copyright 2011 Zdenek Kalal
 % This file is part of TLD.
 
-function run_TLD_on_video(video_image_directory, output_directory, ground_truth_file, num_frames_to_track)
+function run_TLD_on_video(options, video_image_directory, output_directory, ground_truth_file, num_frames_to_track)
 
     addpath(genpath('.')); init_workspace; 
 
@@ -36,9 +36,15 @@ function run_TLD_on_video(video_image_directory, output_directory, ground_truth_
     opt.detection_model_params = struct( ...
         'bbox_size_delta', 20, ... % Bbox for frame t must be +/- bbox_delta of bbox for frame t-1 (this is in pixels)
         'bbox_loc_delta', 30, ... % If new bbox is more than bbox_loc_delta pixels away from last bbox center  (in pixels)
-        'feature', 'hog', ... % 'cnn' 'raw' 'hog'
-        'learning_model', 'svm', ... % 'svm' 'adaboost'
+        'feature', options.feature, ... % 'cnn' 'raw' 'hog'
+        'learning_model', options.classifier, ... % 'svm' 'adaboost'
         'max_history_size', 1000 ); % How many examples to keep in NN
+    
+    fprintf('Running with the following settings:\n');
+    fprintf('\tVideo Sequence: %s\n', options.video_name);
+    fprintf('\tNum Frames to Track: %s\n', options.num_frames_to_track);
+    fprintf('\tFeature: %s\n', options.feature);
+    fprintf('\tLearning Model: %s\n', options.classifier);
 
     % Below, you should set some parameters for positive and negative gneration. These will be passed to
     % the positive and negative generation code. We provide some sample parameters like
