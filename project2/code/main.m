@@ -49,7 +49,7 @@ for i = 1:length(required_params);
     idx1 = strfind(input_param_names, required_params{i});
     idx2 = find(not(cellfun('isempty', idx1)), 1);
     if isempty(idx2)
-        fprintf('\tError: Missing input parameter "%s"\n', required_params{i});
+        fprintf('\tError: Missing required input parameter "%s"\n', required_params{i});
         exit = 1;
     end
 end

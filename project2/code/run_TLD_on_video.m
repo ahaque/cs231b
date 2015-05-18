@@ -75,7 +75,7 @@ function run_TLD_on_video(options, video_image_directory, output_directory, grou
     % -----------------------------
 
     % --- Change for more plot options ----
-    opt.plot            = struct('pex',0,'nex',0,'dt',1,'confidence',1,'target',0,'replace',0,'drawoutput',3,'draw',0,'pts',1,'help', 0,'patch_rescale',1,'save',1); 
+    opt.plot            = struct('pex',0,'nex',0,'dt',1,'confidence',1,'target',0,'replace',0,'drawoutput',3,'draw',0,'pts',1,'help', 0,'patch_rescale',1,'save',0); 
     % ------------------
 
 

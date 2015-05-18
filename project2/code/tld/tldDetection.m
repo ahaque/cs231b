@@ -190,9 +190,7 @@ function [BB Conf tld] = tldDetection(tld,I)
         %fprintf('Max confidence: %f, Could not find any detection (skipping) \n', max(dt.conf1));
       end
     end
-    
-    %fprintf('IN detection ... \n'); keyboard;
-
+   
     % output
     BB    = dt.bb(:,idx); % bounding boxes
     Conf  = dt.conf1(:,idx); % conservative confidences

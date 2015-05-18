@@ -71,7 +71,7 @@ else % if tracker is not defined
             fprintf('Re-initializing tracker ... \n');
         else
             [~, idx] = max(cConf);
-            tld.bb(:,I) = cBB(:,idx);
+            tld.bb(:,I) = cBB(:,idx);a
             tld.conf(I)  = cConf(idx);
             tld.size(I)  = cSize(idx);
             tld.valid(I) = 0; 

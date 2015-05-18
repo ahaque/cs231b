@@ -17,9 +17,9 @@ function tld = tldLearning(tld,I)
     % Update ------------------------------------------------------------------
 
     overlap  = bb_overlap(bb,tld.grid); %Find overlap of bb with all boxes in tld.grid 
-    [pEx, bbP] = tldGeneratePositiveData(tld, overlap, img, tld.p_par_update); % generate positive example features
+    [pEx, ~] = tldGeneratePositiveData(tld, overlap, img, tld.p_par_update); % generate positive example features
 
-    [nEx, bbN] = tldGenerateNegativeData(tld, I, bb, img, tld.n_par); % generate negative example features
+    [nEx, ~] = tldGenerateNegativeData(tld, I, bb, img, tld.n_par); % generate negative example features
 
     %%update nearest nieghbor
     tld = tldTrainNN(pEx,nEx,tld); % updating nearest neighbour 
