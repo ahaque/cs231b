@@ -6,6 +6,7 @@ import os.path
 
 import numpy as np
 
+from Util import *
 from scipy.io import loadmat
 
 
@@ -19,10 +20,14 @@ ML_DIR = "../ml"
 # IMG_DIR contains all images
 IMG_DIR = "../images"
 
+# Input size of the CNN input image (after cropping)
+CNN_INPUT_SIZE = 227
+
+# CNN Batch size. Depends on the hardware memory
+CNN_BATCH_SIZE = 200
+
 # END REQUIRED INPUT PARAMETERS
 ################################################################
-
-COLORS = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(255,0,255),(0,255,255)]
 
 def main():
 
@@ -30,12 +35,42 @@ def main():
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
-	#print data["train"]["gt"].keys()
-	for image_name in data["train"]["gt"].keys():
-		#displayImageWithBboxes(image_name, data["train"]["gt"][image_name][1])
-		overlap = computeOverlap(data["train"]["gt"][image_name][1], \
-								 data["train"]["ssearch"][image_name])
+	extractRegionFeats(data, "train")
 
+################################################################
+# extractRegionFeats(phase)
+#   Extract region features from training set (extract_region_feats.m)
+# 
+# Input: "train" or "test"
+# Output: None
+#
+def extractRegionFeats(data, phase):
+
+	# Extract the image mean and compute the cropped mean
+	img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
+	offset = np.floor((img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
+	img_mean = img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
+
+	for i, image_name in enumerate(data[phase]["gt"].keys()):
+		# Read image, compute number of batches
+		img = cv2.imread(os.path.join(IMG_DIR, image_name))
+		regions = data[phase]["ssearch"][image_name]
+
+		num_regions = data[phase]["ssearch"][image_name].shape[0]
+		num_batches = int(np.ceil(1.0 * num_regions / CNN_BATCH_SIZE))
+		
+		# Extract batches from original image
+		img_batch = np.zeros((CNN_INPUT_SIZE, CNN_INPUT_SIZE, 3, CNN_BATCH_SIZE))
+		for b in xrange(num_batches):
+			# Index into the regions array
+			idx = b * CNN_BATCH_SIZE + i
+			# TODO: Add context around the region
+			print regions[idx]
+			contexted = img[regions[idx][0]:regions[idx][2], regions[idx][1]:regions[idx][3], :]
+			print contexted.shape
+			cv2.imshow("Region", contexted)
+			cv2.waitKey(0)
+			#resized_region = cv2.resize(image, (100, 50)) 
 		break
 
 
@@ -68,17 +103,24 @@ def readMatrixData(phase):
 
 	return data
 
+
 ################################################################
-# Generates a random color from our color list
+# randomColor()
+#   Generates a random color from our color list
 def randomColor():
 	return COLORS[np.random.randint(0, len(COLORS))]
 
+
 ################################################################
-# Displays an image with several bounding boxes
+# displayImageWithBboxes(image_name, bboxes)
+#   Displays an image with several bounding boxes
 #
 # Input: image_name (string)
 #		 bboxes (matrix, where each row corresponds to a bbox)
 # Output: None
+#	
+#	displayImageWithBboxes(image_name, data["train"]["gt"][image_name][1])
+#
 def displayImageWithBboxes(image_name, bboxes):
 	img = cv2.imread(os.path.join(IMG_DIR, image_name))
 
@@ -88,30 +130,6 @@ def displayImageWithBboxes(image_name, bboxes):
 	cv2.imshow("Image", img)
 	cv2.waitKey(0)
 
-################################################################
-# Computes the overlap between bbox and all bboxes
-#
-# Input: bbox (1x4 vector)
-#		 bboxes (nx4 matrix)
-# Output: vector of size n of overlap values
-def computeOverlap(bbox, bboxes):
-	bbox = bbox[0]
-	x1 = np.maximum(bboxes[:,0], bbox[0])
-	y1 = np.maximum(bboxes[:,1], bbox[1])
-	x2 = np.maximum(bboxes[:,2], bbox[2])
-	y2 = np.maximum(bboxes[:,3], bbox[3])
-
-	w = x2 - x1 + 1
-	h = y2 - y1 + 1
-
-	inter = np.multiply(w, h)
-	bboxes_area = np.multiply((bboxes[:,2]-bboxes[:,0]+1), (bboxes[:,3]-bboxes[:,1]+1))
-	bbox_area = np.multiply((bboxes[:,2]-bboxes[:,0]+1),(bboxes[:,3]-bboxes[:,1]+1))
-
-	overlap = np.divide(inter, bboxes_area + bbox_area - inter)
-	overlap[w <= 0] = 0
-	overlap[h <= 0] = 0
-	return overlap
 
 if __name__ == "__main__":
 	main()
