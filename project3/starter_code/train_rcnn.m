@@ -13,3 +13,7 @@ function train_rcnn()
 % -Should you train all classes at once or do them one at a time?
 % -Should you use a bias?
 % -What type of SVM solver/formulation should you use?
+
+% Take positive examples
+% Train regression on positive examples and GT bbox
+% Then run NMS on bboxes
