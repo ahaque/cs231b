@@ -10,12 +10,12 @@ from Util import *
 from scipy.io import loadmat
 
 
-################################################################
 # BEGIN REQUIRED INPUT PARAMETERS
 
 # For all DIRs, the trailing slash does not matter
 # ML_DIR contains matlab matrix files and caffe model
 ML_DIR = "../ml"
+################################################################
 
 # IMG_DIR contains all images
 IMG_DIR = "../images"
@@ -25,6 +25,9 @@ CNN_INPUT_SIZE = 227
 
 # CNN Batch size. Depends on the hardware memory
 CNN_BATCH_SIZE = 200
+
+# Context or 'padding' size around region proposals in pixels
+CONTEXT_SIZE = 15
 
 # END REQUIRED INPUT PARAMETERS
 ################################################################
@@ -54,24 +57,54 @@ def extractRegionFeats(data, phase):
 	for i, image_name in enumerate(data[phase]["gt"].keys()):
 		# Read image, compute number of batches
 		img = cv2.imread(os.path.join(IMG_DIR, image_name))
-		regions = data[phase]["ssearch"][image_name]
+		# Subtract one because bbox
+		regions = data[phase]["ssearch"][image_name] - 1
 
 		num_regions = data[phase]["ssearch"][image_name].shape[0]
 		num_batches = int(np.ceil(1.0 * num_regions / CNN_BATCH_SIZE))
 		
 		# Extract batches from original image
 		img_batch = np.zeros((CNN_INPUT_SIZE, CNN_INPUT_SIZE, 3, CNN_BATCH_SIZE))
+
 		for b in xrange(num_batches):
-			# Index into the regions array
-			idx = b * CNN_BATCH_SIZE + i
-			# TODO: Add context around the region
-			print regions[idx]
-			contexted = img[regions[idx][0]:regions[idx][2], regions[idx][1]:regions[idx][3], :]
-			print contexted.shape
-			cv2.imshow("Region", contexted)
-			cv2.waitKey(0)
-			#resized_region = cv2.resize(image, (100, 50)) 
+			for j in xrange(CNN_BATCH_SIZE):
+				# Index into the regions array
+				idx = b * CNN_BATCH_SIZE + j
+				x_del = regions[idx][2] - regions[idx][0]
+				y_del = regions[idx][3] - regions[idx][1]
+				# If we've exhausted all examples
+				if idx >= num_regions:
+					break
+				# +1 so we include the bounding box as the image
+				padded_region_img = getPaddedRegion(img, regions[idx])
+				
+				#displayImageWithBboxes(image_name, [regions[idx]])
+				#cv2.imshow("Padded", padded_region_img)
+				#cv2.waitKey(0)
+
+				#resized_region = cv2.resize(image, (100, 50)) 
 		break
+
+
+################################################################
+# getPaddedRegion(img, bbox)
+#    Takes a bounding box and adds padding such that the coordinates
+#    are in-bounds of the image
+#
+# Input: image (3D matrix)
+#		 bbox (vector)
+# Output: new_bbox (vector)
+def getPaddedRegion(img, bbox):
+
+	H, W, _ = img.shape
+
+	x_start = max(0, bbox[0] - CONTEXT_SIZE)
+	x_end = min(W, bbox[2] + 1 + CONTEXT_SIZE)
+
+	y_start = max(0, bbox[1] - CONTEXT_SIZE)
+	y_end = min(H, bbox[3] + 1 + CONTEXT_SIZE)
+
+	return img[y_start:y_end, x_start:x_end, :]
 
 
 ################################################################
@@ -120,6 +153,7 @@ def randomColor():
 # Output: None
 #	
 #	displayImageWithBboxes(image_name, data["train"]["gt"][image_name][1])
+#	displayImageWithBboxes("img123.jpg", [[0 0 125 200]])
 #
 def displayImageWithBboxes(image_name, bboxes):
 	img = cv2.imread(os.path.join(IMG_DIR, image_name))
@@ -128,7 +162,7 @@ def displayImageWithBboxes(image_name, bboxes):
 		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), randomColor(), thickness=2)
 
 	cv2.imshow("Image", img)
-	cv2.waitKey(0)
+	#cv2.waitKey(0)
 
 
 if __name__ == "__main__":
