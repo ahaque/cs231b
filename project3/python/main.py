@@ -20,8 +20,8 @@ ML_DIR = "../ml"
 
 # Trailing slash or no slash doesn't matter
 CAFFE_ROOT = '/home/albert/Software/caffe' 
-MODEL_DEPLOY = "/mnt/faces/model_snapshots/amir10_deploy.prototxt"
-MODEL_SNAPSHOT = "/mnt/faces/model_snapshots/amir10_iter_1012280.caffemodel"
+MODEL_DEPLOY = "../ml/cnn_deploy.prototxt"
+MODEL_SNAPSHOT = "../ml/cnn512.caffemodel"
 
 # IMG_DIR contains all images
 IMG_DIR = "../images"
