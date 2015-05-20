@@ -3,6 +3,7 @@ import cv2
 import sys
 import time
 import os.path
+import caffe
 
 import numpy as np
 
@@ -17,8 +18,16 @@ from scipy.io import loadmat
 ML_DIR = "../ml"
 ################################################################
 
+# Trailing slash or no slash doesn't matter
+CAFFE_ROOT = '/home/albert/Software/caffe' 
+MODEL_DEPLOY = "/mnt/faces/model_snapshots/amir10_deploy.prototxt"
+MODEL_SNAPSHOT = "/mnt/faces/model_snapshots/amir10_iter_1012280.caffemodel"
+
 # IMG_DIR contains all images
 IMG_DIR = "../images"
+
+# Set to True if using GPU
+GPU_MODE = True
 
 # Input size of the CNN input image (after cropping)
 CNN_INPUT_SIZE = 227
@@ -44,7 +53,7 @@ def main():
 # extractRegionFeats(phase)
 #   Extract region features from training set (extract_region_feats.m)
 # 
-# Input: "train" or "test"
+# Input: data dictionary and a string = "train" or "test"
 # Output: None
 #
 def extractRegionFeats(data, phase):
@@ -53,6 +62,16 @@ def extractRegionFeats(data, phase):
 	img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
 	offset = np.floor((img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
 	img_mean = img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
+
+	# Set up the Caffe network
+	sys.path.insert(0, CAFFE_ROOT + 'python')
+
+	if GPU_MODE == True:
+		caffe.set_mode_gpu()
+	else:
+		caffe.set_mode_cpu()
+
+	net = caffe.Classifier(MODEL_DEPLOY, MODEL_SNAPSHOT, mean=img_mean, channel_swap=[2,1,0], raw_scale=255)
 
 	for i, image_name in enumerate(data[phase]["gt"].keys()):
 		# Read image, compute number of batches
@@ -67,6 +86,7 @@ def extractRegionFeats(data, phase):
 		img_batch = np.zeros((CNN_INPUT_SIZE, CNN_INPUT_SIZE, 3, CNN_BATCH_SIZE))
 
 		for b in xrange(num_batches):
+			# Create the CNN input batch
 			for j in xrange(CNN_BATCH_SIZE):
 				# Index into the regions array
 				idx = b * CNN_BATCH_SIZE + j
@@ -75,14 +95,15 @@ def extractRegionFeats(data, phase):
 				# If we've exhausted all examples
 				if idx >= num_regions:
 					break
-				# +1 so we include the bounding box as the image
-				padded_region_img = getPaddedRegion(img, regions[idx])
 				
-				#displayImageWithBboxes(image_name, [regions[idx]])
-				#cv2.imshow("Padded", padded_region_img)
-				#cv2.waitKey(0)
+				padded_region_img = getPaddedRegion(img, regions[idx])
+				resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
+				img_batch[:,:,:,j] = resized
 
-				#resized_region = cv2.resize(image, (100, 50)) 
+			# Run the actual CNN to extract features
+			print img_batch.shape
+			scores = net.predict(img_batch)
+			feat = net.blobs["fc7"].data[:,:128]
 		break
 
 
@@ -99,6 +120,7 @@ def getPaddedRegion(img, bbox):
 	H, W, _ = img.shape
 
 	x_start = max(0, bbox[0] - CONTEXT_SIZE)
+	# +1 so we include the bounding box as part of the region
 	x_end = min(W, bbox[2] + 1 + CONTEXT_SIZE)
 
 	y_start = max(0, bbox[1] - CONTEXT_SIZE)
@@ -167,3 +189,5 @@ def displayImageWithBboxes(image_name, bboxes):
 
 if __name__ == "__main__":
 	main()
+
+
