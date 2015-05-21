@@ -6,38 +6,31 @@ import os.path
 import caffe
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from Util import *
 from scipy.io import loadmat
 
-
+################################################################
 # BEGIN REQUIRED INPUT PARAMETERS
 
-# For all DIRs, the trailing slash does not matter
-# ML_DIR contains matlab matrix files and caffe model
-ML_DIR = "../ml"
-################################################################
+# For all DIRs and paths, the trailing slash does not matter
 
-# Trailing slash or no slash doesn't matter
+ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
+IMG_DIR = "../images" # IMG_DIR contains all images
+FEATURES_DIR = "../features" # FEATURES_DIR stores the region features for each image
+
 CAFFE_ROOT = '/home/albert/Software/caffe' 
 MODEL_DEPLOY = "../ml/cnn_deploy.prototxt"
 MODEL_SNAPSHOT = "../ml/cnn512.caffemodel"
 
-# IMG_DIR contains all images
-IMG_DIR = "../images"
-
-# Set to True if using GPU
-GPU_MODE = True
-
-# Input size of the CNN input image (after cropping)
-CNN_INPUT_SIZE = 227
+GPU_MODE = True # Set to True if using GPU
 
 # CNN Batch size. Depends on the hardware memory
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
-CNN_BATCH_SIZE = 2100
-
-# Context or 'padding' size around region proposals in pixels
-CONTEXT_SIZE = 15
+CNN_BATCH_SIZE = 1000
+CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
+CONTEXT_SIZE = 15 # Context or 'padding' size around region proposals in pixels
 
 # The layer and number of features to use from that layer
 # Check the deploy.prototxt file for a list of layers/feature outputs
@@ -61,11 +54,13 @@ def main():
 		start = time.time()
 		img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
 		regions = data["train"]["ssearch"][image_name]
-		print "Regions:", regions.shape
+		
+		print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
-		feats = extractRegionFeatsFromImage(net, img, regions)
-		print "Elapsed: %f seconds" % (time.time() - start)
-		break
+		features = extractRegionFeatsFromImage(net, img, regions)
+		print "\tTotal Time: %f seconds" % (time.time() - start)
+		# Write to file
+		np.save(os.path.join(FEATURES_DIR, image_name), features)
 
 ################################################################
 # initCaffeNetwork()
@@ -105,24 +100,23 @@ def initCaffeNetwork():
 # Output: features (matrix of NUM_REGIONS x NUM_FEATURES)
 #
 def extractRegionFeatsFromImage(net, img, regions):
-	# Subtract one because bboxs are indexed starting at 1
+	# Subtract one because bboxs are indexed starting at 1 but numpy is at 0
 	regions -= 1
 
 	num_regions = regions.shape[0]
 	num_batches = int(np.ceil(1.0 * num_regions / CNN_BATCH_SIZE))
 	features = np.zeros((num_regions, NUM_CNN_FEATURES))
 
-	print "\tRunning %i batches" % (num_batches)
 	# Extract batches from original image
 	for b in xrange(num_batches):
 		# Create the CNN input batch
 		img_batch = []
 		num_in_this_batch = 0
 		start = time.time()
-		print "\tStarting batch %i..." % (b)
 		for j in xrange(CNN_BATCH_SIZE):
 			# Index into the regions array
 			idx = b * CNN_BATCH_SIZE + j
+
 			# If we've exhausted all examples
 			if idx < num_regions:
 				num_in_this_batch += 1
@@ -133,17 +127,17 @@ def extractRegionFeatsFromImage(net, img, regions):
 			resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
 			img_batch.append(resized)
 
-		print "\tBatch %i creation: %f seconds" % (b, time.time() - start)
+		#print "\tBatch %i creation: %f seconds" % (b, time.time() - start)
 		# Run the actual CNN to extract features
 		start = time.time()
 		scores = net.predict(img_batch)
-		print "\tBatch %i feature extraction: %f seconds" % (b, time.time() - start)
+		print "\tBatch %i / %i: %f seconds" % (b+1, num_batches, time.time() - start)
 
 		# The last batch will not be completely full so we don't want to save all of them
 		start_idx = b*CNN_BATCH_SIZE
 		features[start_idx:start_idx+num_in_this_batch,:] = net.blobs[FEATURE_LAYER].data[0:num_in_this_batch,:]
 		
-	print "F", features.shape
+	return features
 
 ################################################################
 # getPaddedRegion(img, bbox)
