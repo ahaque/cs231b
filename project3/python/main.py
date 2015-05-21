@@ -4,7 +4,7 @@ import sys
 import time
 import os.path
 import argparse
-import caffe
+#import caffe
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,6 +38,8 @@ CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 FEATURE_LAYER = "fc6_ft"
 NUM_CNN_FEATURES = 512
 
+NUM_CLASSES = 3 # Number of object classes
+
 # END REQUIRED INPUT PARAMETERS
 ################################################################
 
@@ -49,25 +51,33 @@ def main():
 	args = parser.parse_args()
 
 	if args.mode not in ["extract", "train", "test"]:
-		print "Error: Mode must be one of: 'extract' 'train' 'test'"
+		print "Usage: python main.py --mode MODE"
+		print "Error: MODE must be one of: 'extract' 'train' 'test'"
 		sys.exit(-1)
 
 	# Read the Matlab data files
+	# data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
+	# data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
+	# data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
 	data = {}
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
+	# Equivalent to the starter code: train_rcnn.m
 	if args.mode == "train":
 		# For each object class
-		# Go through each image and build the training set with pos/neg labels
-		# Train a SVM for this class
+		for c in xrange(1, NUM_CLASSES+1):
+			# Train a SVM for this class
+			model = trainClassifierForClass(data, c)
+			break
+		pass
 
+	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
 		pass
 
-	"""
+	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
-
 		# Set up Caffe
 		net = initCaffeNetwork()
 
@@ -82,7 +92,30 @@ def main():
 			features = extractRegionFeatsFromImage(net, img, regions)
 			print "\tTotal Time: %f seconds" % (time.time() - start)
 			np.save(os.path.join(FEATURES_DIR, image_name), features)
-	"""
+
+
+def trainClassifierForClass(data, class_id):
+	# Go through each image and build the training set with pos/neg labels
+	X_train = []
+	y_train = []
+	for i, image_name in enumerate(data["train"]["gt"].keys()):
+		# If this image has no detections?
+		if data["train"]["gt"][image_name][0].shape[0] == 0:
+			continue
+
+		labels = np.array(data["train"]["gt"][image_name][0][0])
+		gt_bboxes = np.array(data["train"]["gt"][image_name][1])
+		regions = data["train"]["ssearch"]["2008_007640.jpg"]
+		print labels, bboxes
+
+		IDX = np.where(labels == class_id)
+		# For each region, see if it overlaps > 0.5 with one of the IDX bboxes
+		# If yes, extract features from this region (make sure to add padding)
+		# Add the feature vectors to X_train as a positive example
+
+		# If overlap is low < 0.3, then add to X_train as a negative example
+
+		print "-------------------------------------"
 
 ################################################################
 # initCaffeNetwork()
