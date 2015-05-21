@@ -33,10 +33,16 @@ GPU_MODE = True
 CNN_INPUT_SIZE = 227
 
 # CNN Batch size. Depends on the hardware memory
-CNN_BATCH_SIZE = 200
+# NOTE: This must match exactly value of line 3 in the deploy.prototxt file
+CNN_BATCH_SIZE = 2100
 
 # Context or 'padding' size around region proposals in pixels
 CONTEXT_SIZE = 15
+
+# The layer and number of features to use from that layer
+# Check the deploy.prototxt file for a list of layers/feature outputs
+FEATURE_LAYER = "fc6_ft"
+NUM_CNN_FEATURES = 512
 
 # END REQUIRED INPUT PARAMETERS
 ################################################################
@@ -47,21 +53,35 @@ def main():
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
-	extractRegionFeats(data, "train")
+	# Set up Caffe
+	net = initCaffeNetwork()
+
+	# Extract features from every training image
+	for i, image_name in enumerate(data["train"]["gt"].keys()):
+		start = time.time()
+		img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
+		regions = data["train"]["ssearch"][image_name]
+		print "Regions:", regions.shape
+
+		feats = extractRegionFeatsFromImage(net, img, regions)
+		print "Elapsed: %f seconds" % (time.time() - start)
+		break
 
 ################################################################
-# extractRegionFeats(phase)
-#   Extract region features from training set (extract_region_feats.m)
+# initCaffeNetwork()
+#   Initializes Caffe and loads the appropriate model files
 # 
-# Input: data dictionary and a string = "train" or "test"
-# Output: None
+# Input: None
+# Output: net (caffe network used to predict images)
 #
-def extractRegionFeats(data, phase):
-
+def initCaffeNetwork():
 	# Extract the image mean and compute the cropped mean
 	img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
 	offset = np.floor((img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
 	img_mean = img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
+	# Must be in the form (3,227,227)
+	img_mean = np.swapaxes(img_mean,0,1)
+	img_mean = np.swapaxes(img_mean,0,2)
 
 	# Set up the Caffe network
 	sys.path.insert(0, CAFFE_ROOT + 'python')
@@ -72,40 +92,58 @@ def extractRegionFeats(data, phase):
 		caffe.set_mode_cpu()
 
 	net = caffe.Classifier(MODEL_DEPLOY, MODEL_SNAPSHOT, mean=img_mean, channel_swap=[2,1,0], raw_scale=255)
+	return net
 
-	for i, image_name in enumerate(data[phase]["gt"].keys()):
-		# Read image, compute number of batches
-		img = cv2.imread(os.path.join(IMG_DIR, image_name))
-		# Subtract one because bbox
-		regions = data[phase]["ssearch"][image_name] - 1
 
-		num_regions = data[phase]["ssearch"][image_name].shape[0]
-		num_batches = int(np.ceil(1.0 * num_regions / CNN_BATCH_SIZE))
+################################################################
+# extractRegionFeatsFromImage(img, regions)
+#   Extract region features from an image (this runs caffe)
+# 
+# Input: net (the caffe network)
+#		 img (as a numpy array)
+#		 regions (matrix where each row is a bbox)
+# Output: features (matrix of NUM_REGIONS x NUM_FEATURES)
+#
+def extractRegionFeatsFromImage(net, img, regions):
+	# Subtract one because bboxs are indexed starting at 1
+	regions -= 1
+
+	num_regions = regions.shape[0]
+	num_batches = int(np.ceil(1.0 * num_regions / CNN_BATCH_SIZE))
+	features = np.zeros((num_regions, NUM_CNN_FEATURES))
+
+	print "\tRunning %i batches" % (num_batches)
+	# Extract batches from original image
+	for b in xrange(num_batches):
+		# Create the CNN input batch
+		img_batch = []
+		num_in_this_batch = 0
+		start = time.time()
+		print "\tStarting batch %i..." % (b)
+		for j in xrange(CNN_BATCH_SIZE):
+			# Index into the regions array
+			idx = b * CNN_BATCH_SIZE + j
+			# If we've exhausted all examples
+			if idx < num_regions:
+				num_in_this_batch += 1
+			else:
+				break
+			
+			padded_region_img = getPaddedRegion(img, regions[idx])
+			resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
+			img_batch.append(resized)
+
+		print "\tBatch %i creation: %f seconds" % (b, time.time() - start)
+		# Run the actual CNN to extract features
+		start = time.time()
+		scores = net.predict(img_batch)
+		print "\tBatch %i feature extraction: %f seconds" % (b, time.time() - start)
+
+		# The last batch will not be completely full so we don't want to save all of them
+		start_idx = b*CNN_BATCH_SIZE
+		features[start_idx:start_idx+num_in_this_batch,:] = net.blobs[FEATURE_LAYER].data[0:num_in_this_batch,:]
 		
-		# Extract batches from original image
-		img_batch = np.zeros((CNN_INPUT_SIZE, CNN_INPUT_SIZE, 3, CNN_BATCH_SIZE))
-
-		for b in xrange(num_batches):
-			# Create the CNN input batch
-			for j in xrange(CNN_BATCH_SIZE):
-				# Index into the regions array
-				idx = b * CNN_BATCH_SIZE + j
-				x_del = regions[idx][2] - regions[idx][0]
-				y_del = regions[idx][3] - regions[idx][1]
-				# If we've exhausted all examples
-				if idx >= num_regions:
-					break
-				
-				padded_region_img = getPaddedRegion(img, regions[idx])
-				resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
-				img_batch[:,:,:,j] = resized
-
-			# Run the actual CNN to extract features
-			print img_batch.shape
-			scores = net.predict(img_batch)
-			feat = net.blobs["fc7"].data[:,:128]
-		break
-
+	print "F", features.shape
 
 ################################################################
 # getPaddedRegion(img, bbox)
