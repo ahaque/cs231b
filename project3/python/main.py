@@ -3,6 +3,7 @@ import cv2
 import sys
 import time
 import os.path
+import argparse
 import caffe
 
 import numpy as np
@@ -30,7 +31,7 @@ GPU_MODE = True # Set to True if using GPU
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
 CNN_BATCH_SIZE = 1000
 CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
-CONTEXT_SIZE = 15 # Context or 'padding' size around region proposals in pixels
+CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
 # The layer and number of features to use from that layer
 # Check the deploy.prototxt file for a list of layers/feature outputs
@@ -40,27 +41,48 @@ NUM_CNN_FEATURES = 512
 # END REQUIRED INPUT PARAMETERS
 ################################################################
 
-def main():
+COLORS = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(255,0,255),(0,255,255)]
 
+def main():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--mode", help="extract, train, or test")
+	args = parser.parse_args()
+
+	if args.mode not in ["extract", "train", "test"]:
+		print "Error: Mode must be one of: 'extract' 'train' 'test'"
+		sys.exit(-1)
+
+	# Read the Matlab data files
 	data = {}
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
-	# Set up Caffe
-	net = initCaffeNetwork()
+	if args.mode == "train":
+		# For each object class
+		# Go through each image and build the training set with pos/neg labels
+		# Train a SVM for this class
 
-	# Extract features from every training image
-	for i, image_name in enumerate(data["train"]["gt"].keys()):
-		start = time.time()
-		img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
-		regions = data["train"]["ssearch"][image_name]
-		
-		print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
+	if args.mode == "test":
+		pass
 
-		features = extractRegionFeatsFromImage(net, img, regions)
-		print "\tTotal Time: %f seconds" % (time.time() - start)
-		# Write to file
-		np.save(os.path.join(FEATURES_DIR, image_name), features)
+	"""
+	if args.mode == "extract":
+
+		# Set up Caffe
+		net = initCaffeNetwork()
+
+		# Extract features from every training image
+		for i, image_name in enumerate(data["train"]["gt"].keys()):
+			start = time.time()
+			img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
+			regions = data["train"]["ssearch"][image_name]
+			
+			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
+
+			features = extractRegionFeatsFromImage(net, img, regions)
+			print "\tTotal Time: %f seconds" % (time.time() - start)
+			np.save(os.path.join(FEATURES_DIR, image_name), features)
+	"""
 
 ################################################################
 # initCaffeNetwork()
