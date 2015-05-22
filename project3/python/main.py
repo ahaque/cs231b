@@ -199,7 +199,17 @@ def extractRegionFeatsFromImage(net, img, regions):
 		
 	return features
 
-
+################################################################
+# warpRegion(img, bbox)
+#	Takes an input image and bbox and outputs the warped version
+#	The warped version includes a guaranteed padding size around
+#   the warped version and will use the imagenet mean if the padding
+#	exceeds the original image dimensions
+#
+# Input: img (H x W x 3 matrix)
+# 		 bbox (vector of length 4)
+# Output: resized_img (227x227 warped image)
+#
 def warpRegion(img, bbox):
 	global original_img_mean
 	H, W, _ = img.shape
@@ -247,28 +257,6 @@ def warpRegion(img, bbox):
 	#cv2.waitKey(0)
 
 	return resized_img
-
-################################################################
-# getPaddedRegion(img, bbox)
-#    Takes a bounding box and adds padding such that the coordinates
-#    are in-bounds of the image
-#
-# Input: image (3D matrix)
-#		 bbox (vector)
-# Output: new_bbox (vector)
-def getPaddedRegion(img, bbox):
-
-	H, W, _ = img.shape
-
-	x_start = max(0, bbox[0] - CONTEXT_SIZE)
-	# +1 so we include the bounding box as part of the region
-	x_end = min(W, bbox[2] + 1 + CONTEXT_SIZE)
-
-	y_start = max(0, bbox[1] - CONTEXT_SIZE)
-	y_end = min(H, bbox[3] + 1 + CONTEXT_SIZE)
-
-	return img[y_start:y_end, x_start:x_end, :]
-
 
 ################################################################
 # readMatrixData()
