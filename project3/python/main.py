@@ -39,6 +39,8 @@ NUM_CNN_FEATURES = 512
 
 NUM_CLASSES = 3 # Number of object classes
 
+INDICATOR_PAD_SIZE = 100
+
 # END REQUIRED INPUT PARAMETERS
 ################################################################
 
@@ -138,7 +140,7 @@ def initCaffeNetwork():
 	original_img_mean = original_img_mean.astype(np.uint8)
 
 	# Set up the Caffe network
-	sys.path.insert(0, CAFFE_ROOT + 'python')
+	sys.path.insert(0, os.path.join(CAFFE_ROOT, 'python'))
 
 	if GPU_MODE == True:
 		caffe.set_mode_gpu()
@@ -166,6 +168,16 @@ def extractRegionFeatsFromImage(net, img, regions):
 	num_batches = int(np.ceil(1.0 * num_regions / CNN_BATCH_SIZE))
 	features = np.zeros((num_regions, NUM_CNN_FEATURES))
 
+	H, W, _ = img.shape
+
+	# Pad the image with -1's
+	# -1's indicate that this pixel will be replaced with the image mean
+	padded_img = -1 * np.ones((H + 2*INDICATOR_PAD_SIZE, W + 2*INDICATOR_PAD_SIZE, 3))
+
+	# Add the region to the center of this new "padded" image
+	start = INDICATOR_PAD_SIZE
+	padded_img[start:start+H, start:start+W, :] = img
+
 	# Extract batches from original image
 	for b in xrange(num_batches):
 		# Create the CNN input batch
@@ -182,7 +194,7 @@ def extractRegionFeatsFromImage(net, img, regions):
 			else:
 				break
 			
-			warped = warpRegion(img, regions[idx])
+			warped = warpRegion(padded_img, regions[idx])
 			#padded_region_img = getPaddedRegion(img, regions[idx])
 			#resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
 			img_batch.append(warped)
@@ -210,25 +222,21 @@ def extractRegionFeatsFromImage(net, img, regions):
 # 		 bbox (vector of length 4)
 # Output: resized_img (227x227 warped image)
 #
-def warpRegion(img, bbox):
+def warpRegion(padded_img, bbox, debug=False):
 	global original_img_mean
-	H, W, _ = img.shape
+	
 	bbH = bbox[3] - bbox[1] + 1 # Plus one to include the box as part of the region
 	bbW = bbox[2] - bbox[0] + 1
 
-	original_region = img[bbox[1]:bbox[3], bbox[0]:bbox[2],:]
-	cv2.imshow("Original", original_region)
+	translated_bbox = bbox + INDICATOR_PAD_SIZE
+
+	original_region = padded_img[translated_bbox[1]:translated_bbox[3], translated_bbox[0]:translated_bbox[2],:]
+	if debug:
+		temp_region = np.copy(original_region).astype(np.uint8)
+		temp_region[temp_region < 0 ] = 0
+		cv2.imshow("Original", temp_region)
 
 	subimg_size = float(CNN_INPUT_SIZE - CONTEXT_SIZE) # Usually 227-16 = 211
-
-	# Pad the image with -1's
-	# -1's indicate that this pixel will be replaced with the image mean
-	indicator_pad_size = 100
-	padded_img = -1 * np.ones((H + 2*indicator_pad_size, W + 2*indicator_pad_size, 3))
-
-	# Add the region to the center of this new "padded" image
-	start = indicator_pad_size
-	padded_img[start:start+H, start:start+W, :] = img
 
 	# Compute the scaling factor. Original region box must be sized to subimg_size
 	scaleH = subimg_size / bbH
@@ -239,7 +247,6 @@ def warpRegion(img, bbox):
 	contextH = int(np.ceil(CONTEXT_SIZE / scaleH))
 
 	# Get the new region which includes context from the padded image
-	translated_bbox = bbox + indicator_pad_size
 	startY = translated_bbox[1] - contextH
 	startX = translated_bbox[0] - contextW
 	endY = translated_bbox[3] + contextH + 1
@@ -252,9 +259,10 @@ def warpRegion(img, bbox):
 	# Replace any -1 with the mean image
 	resized_img[resized_img < 0] = original_img_mean[resized_img < 0]
 
-	#cv2.imshow("Mean-Padded", resized_img.astype(np.uint8))
-	#cv2.imshow("Mean", original_img_mean)
-	#cv2.waitKey(0)
+	if debug:
+		cv2.imshow("Mean-Padded", resized_img.astype(np.uint8))
+		cv2.imshow("Mean", original_img_mean)
+		cv2.waitKey(0)
 
 	return resized_img
 
