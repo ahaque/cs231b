@@ -1,4 +1,3 @@
-
 import cv2
 import sys
 import time
@@ -9,7 +8,7 @@ import caffe
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Util import *
+from util import *
 from scipy.io import loadmat
 
 ################################################################
@@ -19,17 +18,17 @@ from scipy.io import loadmat
 
 ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
-FEATURES_DIR = "../features" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/mean_padding" # FEATURES_DIR stores the region features for each image
 
-CAFFE_ROOT = '/home/albert/Software/caffe' 
-MODEL_DEPLOY = "../ml/cnn_deploy.prototxt"
-MODEL_SNAPSHOT = "../ml/cnn512.caffemodel"
+CAFFE_ROOT = '/home/albert/Software/caffe' # Caffe installation directory
+MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
+MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
 
 GPU_MODE = True # Set to True if using GPU
 
 # CNN Batch size. Depends on the hardware memory
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
-CNN_BATCH_SIZE = 1000
+CNN_BATCH_SIZE = 1000 # CNN batch size
 CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
 CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
@@ -43,6 +42,7 @@ NUM_CLASSES = 3 # Number of object classes
 # END REQUIRED INPUT PARAMETERS
 ################################################################
 
+original_img_mean = None
 COLORS = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(255,0,255),(0,255,255)]
 
 def main():
@@ -51,8 +51,8 @@ def main():
 	args = parser.parse_args()
 
 	if args.mode not in ["extract", "train", "test"]:
-		print "Usage: python main.py --mode MODE"
 		print "Error: MODE must be one of: 'extract' 'train' 'test'"
+		print "Usage: python main.py --mode MODE"
 		sys.exit(-1)
 
 	# Read the Matlab data files
@@ -85,6 +85,7 @@ def main():
 		for i, image_name in enumerate(data["train"]["gt"].keys()):
 			start = time.time()
 			img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
+			img = cv2.imread(os.path.join(IMG_DIR, image_name))
 			regions = data["train"]["ssearch"][image_name]
 			
 			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
@@ -126,12 +127,15 @@ def trainClassifierForClass(data, class_id):
 #
 def initCaffeNetwork():
 	# Extract the image mean and compute the cropped mean
-	img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
-	offset = np.floor((img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
-	img_mean = img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
+	global original_img_mean
+	original_img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
+	offset = np.floor((original_img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
+	original_img_mean = original_img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
 	# Must be in the form (3,227,227)
-	img_mean = np.swapaxes(img_mean,0,1)
-	img_mean = np.swapaxes(img_mean,0,2)
+	img_mean = np.swapaxes(original_img_mean,0,1)
+	img_mean = np.swapaxes(img_mean,0,2)	
+	# Used for warping
+	original_img_mean = original_img_mean.astype(np.uint8)
 
 	# Set up the Caffe network
 	sys.path.insert(0, CAFFE_ROOT + 'python')
@@ -178,9 +182,10 @@ def extractRegionFeatsFromImage(net, img, regions):
 			else:
 				break
 			
-			padded_region_img = getPaddedRegion(img, regions[idx])
-			resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
-			img_batch.append(resized)
+			warped = warpRegion(img, regions[idx])
+			#padded_region_img = getPaddedRegion(img, regions[idx])
+			#resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
+			img_batch.append(warped)
 
 		#print "\tBatch %i creation: %f seconds" % (b, time.time() - start)
 		# Run the actual CNN to extract features
@@ -193,6 +198,55 @@ def extractRegionFeatsFromImage(net, img, regions):
 		features[start_idx:start_idx+num_in_this_batch,:] = net.blobs[FEATURE_LAYER].data[0:num_in_this_batch,:]
 		
 	return features
+
+
+def warpRegion(img, bbox):
+	global original_img_mean
+	H, W, _ = img.shape
+	bbH = bbox[3] - bbox[1] + 1 # Plus one to include the box as part of the region
+	bbW = bbox[2] - bbox[0] + 1
+
+	original_region = img[bbox[1]:bbox[3], bbox[0]:bbox[2],:]
+	cv2.imshow("Original", original_region)
+
+	subimg_size = float(CNN_INPUT_SIZE - CONTEXT_SIZE) # Usually 227-16 = 211
+
+	# Pad the image with -1's
+	# -1's indicate that this pixel will be replaced with the image mean
+	indicator_pad_size = 100
+	padded_img = -1 * np.ones((H + 2*indicator_pad_size, W + 2*indicator_pad_size, 3))
+
+	# Add the region to the center of this new "padded" image
+	start = indicator_pad_size
+	padded_img[start:start+H, start:start+W, :] = img
+
+	# Compute the scaling factor. Original region box must be sized to subimg_size
+	scaleH = subimg_size / bbH
+	scaleW = subimg_size / bbW
+
+	# Compute how many context pixels we need from the original image
+	contextW = int(np.ceil(CONTEXT_SIZE / scaleW))
+	contextH = int(np.ceil(CONTEXT_SIZE / scaleH))
+
+	# Get the new region which includes context from the padded image
+	translated_bbox = bbox + indicator_pad_size
+	startY = translated_bbox[1] - contextH
+	startX = translated_bbox[0] - contextW
+	endY = translated_bbox[3] + contextH + 1
+	endX = translated_bbox[2] + contextW + 1
+	cropped_region = padded_img[startY:endY, startX:endX, :]
+
+	# Resize the image and replace -1 with the image mean
+	resized_img = cv2.resize(cropped_region, (CNN_INPUT_SIZE, CNN_INPUT_SIZE), interpolation=cv2.INTER_LINEAR) 
+
+	# Replace any -1 with the mean image
+	resized_img[resized_img < 0] = original_img_mean[resized_img < 0]
+
+	#cv2.imshow("Mean-Padded", resized_img.astype(np.uint8))
+	#cv2.imshow("Mean", original_img_mean)
+	#cv2.waitKey(0)
+
+	return resized_img
 
 ################################################################
 # getPaddedRegion(img, bbox)
