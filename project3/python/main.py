@@ -4,7 +4,7 @@ import sys
 import time
 import os.path
 import argparse
-#import caffe
+import caffe
 
 import numpy as np
 import matplotlib.pyplot as plt
