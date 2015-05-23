@@ -9,9 +9,10 @@ def main():
 						[50, 50, 100, 100] # 1
 						])
 	out = util.computeOverlap(region_bbox, gt_bboxes)
-	assert(np.abs(out[0]-0.14935926) <= 1e5)
-	assert(out[1] == 0)
-	assert(out[2] == 1)
+	assert(np.abs(out[0] - 0.14935926) <= 1e-7)
+	assert(np.abs(out[1] - 0) <= 1e-7)
+	assert(np.abs(out[2] - 1) <= 1e-7)
+	print "Passed all tests."
 
 if __name__ == '__main__':
 	main()
