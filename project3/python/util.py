@@ -29,7 +29,9 @@ def computeOverlap(bbox, bboxes):
 	bboxes_area = np.multiply((bboxes[:,2]-bboxes[:,0]+1), (bboxes[:,3]-bboxes[:,1]+1))
 	bbox_area = np.multiply((bbox[2]-bbox[0]+1),(bbox[3]-bbox[1]+1))
 
-	overlap = np.divide(1.0*inter, bboxes_area + bbox_area - inter)
+	# Add 1e-7 to prevent divide by zero errors
+	overlap = np.divide(1.0*inter, bboxes_area + bbox_area - inter + 1e-7)
+
 	overlap[w <= 0] = 0
 	overlap[h <= 0] = 0
 
