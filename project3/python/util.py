@@ -14,11 +14,12 @@ import numpy as np
 # 	overlap = computeOverlap(data["train"]["gt"][image_name][1], \
 #							     data["train"]["ssearch"][image_name])
 def computeOverlap(bbox, bboxes):
-	bbox = bbox[0]
+	if len(bbox.shape) > 1:
+		bbox = bbox[0]
 	x1 = np.maximum(bboxes[:,0], bbox[0])
 	y1 = np.maximum(bboxes[:,1], bbox[1])
-	x2 = np.maximum(bboxes[:,2], bbox[2])
-	y2 = np.maximum(bboxes[:,3], bbox[3])
+	x2 = np.minimum(bboxes[:,2], bbox[2])
+	y2 = np.minimum(bboxes[:,3], bbox[3])
 
 	w = x2 - x1 + 1
 	h = y2 - y1 + 1
@@ -32,4 +33,3 @@ def computeOverlap(bbox, bboxes):
 	overlap[h <= 0] = 0
 
 	return overlap
-
