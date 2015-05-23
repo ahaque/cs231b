@@ -3,8 +3,9 @@ import sys
 import time
 import os.path
 import argparse
-# import caffe
+import caffe
 import util
+import threading
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,7 +42,7 @@ NUM_CNN_FEATURES = 512
 NUM_CLASSES = 3 # Number of object classes
 
 INDICATOR_PAD_SIZE = 100
-POSITIVE_THRESHOLD = 0.5
+POSITIVE_THRESHOLD = 0.7
 NEGATIVE_THRESHOLD = 0.3
 
 # END REQUIRED INPUT PARAMETERS
@@ -52,13 +53,25 @@ COLORS = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(255,0,255),(0,255,255)]
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--mode", help="extract, train, or test")
+	parser.add_argument("--mode", help="extract, train, or test", required=True)
+	parser.add_argument("--num_gpus", help="For feature extraction, total number of GPUs you will use")
+	parser.add_argument("--gpu_id", help="For feature extraction, GPU ID [0,num_gpus) for which part to run")
 	args = parser.parse_args()
 
 	if args.mode not in ["extract", "train", "test"]:
-		print "Error: MODE must be one of: 'extract' 'train' 'test'"
-		print "Usage: python main.py --mode MODE"
+		print "\tError: MODE must be one of: 'extract' 'train' 'test'"
 		sys.exit(-1)
+
+	if args.mode == "extract":
+		if args.num_gpus is None or args.gpu_id is None:
+			print "\tFor extraction mode, must specify number of GPUs and this GPU id"
+			print "\tpython main.py --mode extract --num_gpus NUM_GPUS --gpu_id GPU_ID"
+			sys.exit(-1)
+
+		num_gpus = int(args.num_gpus)
+		gpu_id = int(args.gpu_id)
+
+
 
 	# Read the Matlab data files
 	# data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
@@ -68,13 +81,16 @@ def main():
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
+	# Set up Caffe
+	net = initCaffeNetwork(gpu_id)
+
 	# Equivalent to the starter code: train_rcnn.m
 	if args.mode == "train":
 		# For each object class
 		models = []
 		for c in xrange(1, NUM_CLASSES+1):
 			# Train a SVM for this class
-			models.append(trainClassifierForClass(data, c))
+			models.append(trainClassifierForClass(net, data, c))
 
 	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
@@ -82,77 +98,86 @@ def main():
 
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
-		# Set up Caffe
-		net = initCaffeNetwork()
+		# Create the workload for each GPU
+		ls = os.listdir(IMG_DIR)
+		assignments = list(chunks(ls, num_gpus))
+		payload = assignments[gpu_id]
 
-		# Extract features from every training image
-		for i, image_name in enumerate(data["train"]["gt"].keys()):
+		print "Processing %i images on GPU ID %i. Total GPUs: %i" % (len(payload), gpu_id, num_gpus)
+		for i, image_name in enumerate(payload):
 			start = time.time()
-			img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
 			img = cv2.imread(os.path.join(IMG_DIR, image_name))
-			regions = data["train"]["ssearch"][image_name]
-			
+			# Also need to extract features from GT bboxes
+			# Note that GT boxes come first in the feature vector matrix, then come regions
+			# In later parts of the program, if you want to access only GT features
+			# Simply access the first len(data["train"]["gt"][image_name][1]) rows
+			regions = np.vstack((data["train"]["gt"][image_name][1], data["train"]["ssearch"][image_name]))
+
 			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
 			features = extractRegionFeatsFromImage(net, img, regions)
 			print "\tTotal Time: %f seconds" % (time.time() - start)
 			np.save(os.path.join(FEATURES_DIR, image_name), features)
 
+# Takes a list and splits it into roughly equal parts
+def chunks(items, num_gpus):
+	n = int(np.ceil(1.0*len(items)/num_gpus))
+	for i in xrange(0, len(items), n):
+		yield items[i:i+n]
 
-def trainClassifierForClass(data, class_id, debug=False):
+def trainClassifierForClass(net, data, class_id, debug=False):
 	# Go through each image and build the training set with pos/neg labels
 	X_train = []
 	y_train = []
 	start_time = time.time()
+	num_images = len(data["train"]["gt"].keys())
 	for i, image_name in enumerate(data["train"]["gt"].keys()):
-		# Load features from file for current image
-		features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
-
-		# If this image has no detections?
+		# If this image has no regions
 		if data["train"]["gt"][image_name][0].shape[0] == 0:
 			continue
 		
+		# Load features from file for current image
+		features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+
 		labels = np.array(data["train"]["gt"][image_name][0][0])
-		gt_bboxes = np.array(data["train"]["gt"][image_name][1])
+		gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int16) # Otherwise uint8 by default
 		regions = data["train"]["ssearch"][image_name]
 
-		if debug:
-			print 'labels',labels
-			print 'gt_bboxes',gt_bboxes
-			print 'regions',regions.shape
-		
 		IDX = np.where(labels == class_id)[0]
-		if debug:
-			print 'index',IDX
-			print 'features',features.shape
+		# If no GT bboxes for this class, skip this image
+		if len(IDX) == 0:
+			continue
 
-		# For each region, see if it overlaps > 0.5 with one of the IDX bboxes
-		# If yes, extract features from this region (make sure to add padding)
-		# Add the feature vectors to X_train as a positive example
-		# If overlap is low < 0.3, then add to X_train as a negative example
-		for gt_bbox in gt_bboxes[IDX]:
-			overlaps = util.computeOverlap(gt_bbox, regions)
-			
-			positive_idx = np.where(overlaps > POSITIVE_THRESHOLD)[0]
-			negative_idx = np.where(overlaps < NEGATIVE_THRESHOLD)[0]
+		# Add only GT box as a positive (see Sec 2.3 Object category classifiers section)
+		# Need to extract the positive features
 
-			pos_features = features[positive_idx, :]
-			neg_features = features[negative_idx, :]
+		# TODO: Once feature extraction with GT boxes is done, get the features
+		# Corresponding to the correct classes
+		
+		#img = cv2.imread(os.path.join(IMG_DIR, image_name))
+		#pos_feats = extractRegionFeatsFromImage(net, img, gt_bboxes[IDX])
+		#X_train.append(pos_feats)
+		#y_train.append(np.ones((pos_feats.shape[0], 1)))
 
-			if debug:
-				print 'overlaps', overlaps.shape
-				print 'num positives', pos_features.shape
-				print 'num negatives', neg_features.shape
-				print 'num total', np.vstack((pos_features, neg_features)).shape
+		# If overlap is low < 0.3 for ALL bboxes of this class
+		# Then add to X_train as a negative example
+		overlaps = np.zeros((len(IDX), regions.shape[0]))
+		for j, gt_bbox in enumerate(gt_bboxes[IDX]):
+			overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
 
-			X_train.append(pos_features)
-			X_train.append(neg_features)
+		highest_overlaps = overlaps.max(0)
 
-			y_train.append(np.ones((pos_features.shape[0], 1)))
-			y_train.append(np.zeros((neg_features.shape[0], 1)))
+		# Only add negative examples where bbox is far from all GT boxes
+		negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
+		neg_features = features[negative_idx, :]
+
+		X_train.append(neg_features)
+		y_train.append(np.zeros((neg_features.shape[0], 1)))
 
 		if debug:
 			print "-------------------------------------"
+		if i % 100 == 0:
+			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- start_time)
 
 
 	X_train = np.vstack(tuple(X_train))
@@ -160,7 +185,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 	print 'classifier num total', X_train.shape, y_train.shape
 
 	# Train the SVM
-	model = svm.SVC()
+	model = svm.LinearSVC()
 	start_time = time.time()
 	print "Training SVM..."
 	model.fit(X_train, y_train)
@@ -175,7 +200,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 
 
 	end_time = time.time()
-	print 'time: %ds'%(end_time - start_time)
+	print 'Total Time: %d seconds'%(end_time - start_time)
 ################################################################
 # initCaffeNetwork()
 #   Initializes Caffe and loads the appropriate model files
@@ -183,7 +208,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 # Input: None
 # Output: net (caffe network used to predict images)
 #
-def initCaffeNetwork():
+def initCaffeNetwork(gpu_id):
 	# Extract the image mean and compute the cropped mean
 	global original_img_mean
 	original_img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
@@ -200,6 +225,7 @@ def initCaffeNetwork():
 
 	if GPU_MODE == True:
 		caffe.set_mode_gpu()
+		caffe.set_device(gpu_id)
 	else:
 		caffe.set_mode_cpu()
 

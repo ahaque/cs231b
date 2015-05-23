@@ -31,6 +31,8 @@ def computeOverlap(bbox, bboxes):
 
 	# Add 1e-7 to prevent divide by zero errors
 	overlap = np.divide(1.0*inter, bboxes_area + bbox_area - inter + 1e-7)
+	# If the denominator was zero, the 1e-7 will make overlap > 1
+	overlap[overlap > 1] = 0
 
 	overlap[w <= 0] = 0
 	overlap[h <= 0] = 0
