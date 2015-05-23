@@ -14,6 +14,7 @@ import numpy as np
 # 	overlap = computeOverlap(data["train"]["gt"][image_name][1], \
 #							     data["train"]["ssearch"][image_name])
 def computeOverlap(bbox, bboxes):
+	# bbox can be a singular array, or a matrix.
 	if len(bbox.shape) > 1:
 		bbox = bbox[0]
 	x1 = np.maximum(bboxes[:,0], bbox[0])

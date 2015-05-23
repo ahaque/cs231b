@@ -3,13 +3,14 @@ import sys
 import time
 import os.path
 import argparse
-import caffe
+# import caffe
+import util
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from util import *
 from scipy.io import loadmat
+from sklearn import svm
 
 ################################################################
 # BEGIN REQUIRED INPUT PARAMETERS
@@ -40,6 +41,8 @@ NUM_CNN_FEATURES = 512
 NUM_CLASSES = 3 # Number of object classes
 
 INDICATOR_PAD_SIZE = 100
+POSITIVE_THRESHOLD = 0.5
+NEGATIVE_THRESHOLD = 0.3
 
 # END REQUIRED INPUT PARAMETERS
 ################################################################
@@ -68,11 +71,10 @@ def main():
 	# Equivalent to the starter code: train_rcnn.m
 	if args.mode == "train":
 		# For each object class
+		models = []
 		for c in xrange(1, NUM_CLASSES+1):
 			# Train a SVM for this class
-			model = trainClassifierForClass(data, c)
-			break
-		pass
+			models.append(trainClassifierForClass(data, c))
 
 	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
@@ -97,29 +99,83 @@ def main():
 			np.save(os.path.join(FEATURES_DIR, image_name), features)
 
 
-def trainClassifierForClass(data, class_id):
+def trainClassifierForClass(data, class_id, debug=False):
 	# Go through each image and build the training set with pos/neg labels
 	X_train = []
 	y_train = []
+	start_time = time.time()
 	for i, image_name in enumerate(data["train"]["gt"].keys()):
+		# Load features from file for current image
+		features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+
 		# If this image has no detections?
 		if data["train"]["gt"][image_name][0].shape[0] == 0:
 			continue
-
+		
 		labels = np.array(data["train"]["gt"][image_name][0][0])
 		gt_bboxes = np.array(data["train"]["gt"][image_name][1])
-		regions = data["train"]["ssearch"]["2008_007640.jpg"]
-		print labels, bboxes
+		regions = data["train"]["ssearch"][image_name]
 
-		IDX = np.where(labels == class_id)
+		if debug:
+			print 'labels',labels
+			print 'gt_bboxes',gt_bboxes
+			print 'regions',regions.shape
+		
+		IDX = np.where(labels == class_id)[0]
+		if debug:
+			print 'index',IDX
+			print 'features',features.shape
+
 		# For each region, see if it overlaps > 0.5 with one of the IDX bboxes
 		# If yes, extract features from this region (make sure to add padding)
 		# Add the feature vectors to X_train as a positive example
-
 		# If overlap is low < 0.3, then add to X_train as a negative example
+		for gt_bbox in gt_bboxes[IDX]:
+			overlaps = util.computeOverlap(gt_bbox, regions)
+			
+			positive_idx = np.where(overlaps > POSITIVE_THRESHOLD)[0]
+			negative_idx = np.where(overlaps < NEGATIVE_THRESHOLD)[0]
 
-		print "-------------------------------------"
+			pos_features = features[positive_idx, :]
+			neg_features = features[negative_idx, :]
 
+			if debug:
+				print 'overlaps', overlaps.shape
+				print 'num positives', pos_features.shape
+				print 'num negatives', neg_features.shape
+				print 'num total', np.vstack((pos_features, neg_features)).shape
+
+			X_train.append(pos_features)
+			X_train.append(neg_features)
+
+			y_train.append(np.ones((pos_features.shape[0], 1)))
+			y_train.append(np.zeros((neg_features.shape[0], 1)))
+
+		if debug:
+			print "-------------------------------------"
+
+
+	X_train = np.vstack(tuple(X_train))
+	y_train = np.squeeze(np.vstack(tuple(y_train))) # Makes it a 1D array, required by SVM
+	print 'classifier num total', X_train.shape, y_train.shape
+
+	# Train the SVM
+	model = svm.SVC()
+	start_time = time.time()
+	print "Training SVM..."
+	model.fit(X_train, y_train)
+	print "Completed in %f seconds" % (time.time() - start_time)
+
+	# Compute training accuracy
+	print "Testing SVM..."
+	y_hat = model.predict(X_train)
+	num_correct = np.sum(y_train == y_hat)
+	print "Completed in %f seconds" % (time.time() - start_time)
+	print "Training Accuracy:", 1.0 * num_correct / y_train.shape[0]
+
+
+	end_time = time.time()
+	print 'time: %ds'%(end_time - start_time)
 ################################################################
 # initCaffeNetwork()
 #   Initializes Caffe and loads the appropriate model files
