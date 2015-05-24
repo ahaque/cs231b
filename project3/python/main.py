@@ -113,12 +113,11 @@ def main():
 			start = time.time()
 			img = cv2.imread(os.path.join(IMG_DIR, image_name))
 			# Also need to extract features from GT bboxes
-			# Note that GT boxes come first in the feature vector matrix, then come regions
-			# In later parts of the program, if you want to access only GT features
-			# Simply access the first len(data["train"]["gt"][image_name][1]) rows
-			if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] == 0 or data[EXTRACT_MODE]["ssearch"][image_name].shape[0] == 0:
-				continue
-			regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
+			# Sometimes an image has zero GT bboxes
+			if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] > 0:
+				regions = data[EXTRACT_MODE]["ssearch"][image_name]
+			else:
+				regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
 
 			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
