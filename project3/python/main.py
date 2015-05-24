@@ -23,8 +23,11 @@ IMG_DIR = "../images" # IMG_DIR contains all images
 FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
 CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
-MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
-MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
+#MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
+#MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
+
+MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
+MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
 
 GPU_MODE = True # Set to True if using GPU
 
@@ -32,12 +35,13 @@ GPU_MODE = True # Set to True if using GPU
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
 CNN_BATCH_SIZE = 2000 # CNN batch size
 CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
+
 CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
 # The layer and number of features to use from that layer
 # Check the deploy.prototxt file for a list of layers/feature outputs
-FEATURE_LAYER = "fc6_ft"
-NUM_CNN_FEATURES = 512
+FEATURE_LAYER = "fc7"
+NUM_CNN_FEATURES = 4096
 
 NUM_CLASSES = 3 # Number of object classes
 
@@ -98,7 +102,7 @@ def main():
 
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
-		EXTRACT_MODE = "test"
+		EXTRACT_MODE = "train"
 		# Create the workload for each GPU
 		ls = data[EXTRACT_MODE]["gt"].keys()
 		assignments = list(chunks(ls, num_gpus))
@@ -109,12 +113,11 @@ def main():
 			start = time.time()
 			img = cv2.imread(os.path.join(IMG_DIR, image_name))
 			# Also need to extract features from GT bboxes
-			# Note that GT boxes come first in the feature vector matrix, then come regions
-			# In later parts of the program, if you want to access only GT features
-			# Simply access the first len(data["train"]["gt"][image_name][1]) rows
-			if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] == 0 or data[EXTRACT_MODE]["ssearch"][image_name].shape[0] == 0:
-				continue
-			regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
+			# Sometimes an image has zero GT bboxes
+			if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] > 0:
+				regions = data[EXTRACT_MODE]["ssearch"][image_name]
+			else:
+				regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
 
 			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
@@ -228,7 +231,8 @@ def initCaffeNetwork(gpu_id):
 
 	if GPU_MODE == True:
 		caffe.set_mode_gpu()
-		caffe.set_device(gpu_id)
+		local_id = gpu_id % 4
+		caffe.set_device(local_id)
 	else:
 		caffe.set_mode_cpu()
 
