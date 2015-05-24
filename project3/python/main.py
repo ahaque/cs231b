@@ -232,7 +232,8 @@ def initCaffeNetwork(gpu_id):
 
 	if GPU_MODE == True:
 		caffe.set_mode_gpu()
-		caffe.set_device(gpu_id)
+		local_id = gpu_id % 4
+		caffe.set_device(local_id)
 	else:
 		caffe.set_mode_cpu()
 
