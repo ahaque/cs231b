@@ -20,7 +20,7 @@ from sklearn import svm
 
 ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
-FEATURES_DIR = "../features/mean_padding" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
 CAFFE_ROOT = '/home/albert/Software/caffe' # Caffe installation directory
 MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
@@ -99,6 +99,7 @@ def main():
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
 		# Create the workload for each GPU
+		EXTRACT_MODE = "test"
 		ls = os.listdir(IMG_DIR)
 		assignments = list(chunks(ls, num_gpus))
 		payload = assignments[gpu_id]
@@ -111,7 +112,7 @@ def main():
 			# Note that GT boxes come first in the feature vector matrix, then come regions
 			# In later parts of the program, if you want to access only GT features
 			# Simply access the first len(data["train"]["gt"][image_name][1]) rows
-			regions = np.vstack((data["train"]["gt"][image_name][1], data["train"]["ssearch"][image_name]))
+			regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
 
 			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
