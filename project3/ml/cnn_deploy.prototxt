@@ -1,6 +1,6 @@
 name: "CaffeNet"
 input: "data"
-input_dim: 1000
+input_dim: 850
 input_dim: 3
 input_dim: 227
 input_dim: 227
