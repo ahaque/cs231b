@@ -23,7 +23,7 @@ ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
 FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
-CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
+# CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
 MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
 MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
 
@@ -148,6 +148,8 @@ def trainClassifierForClass(data, class_id, debug=False):
 			continue
 		
 		# Load features from file for current image
+		if not os.path.isfile(os.path.join(FEATURES_DIR, image_name + '.ft')):
+			continue
 		with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
 			features = cp.load(fp)
 
@@ -184,6 +186,10 @@ def trainClassifierForClass(data, class_id, debug=False):
 			neg_features = features[negative_idx, :]
 		else:
 			neg_features = features[:, :]
+
+		print features
+		print pos_feats.shape
+		print neg_features.shape
 
 		X_train.append(neg_features)
 		y_train.append(np.zeros((neg_features.shape[0], 1)))
@@ -236,7 +242,7 @@ def initCaffeNetwork(gpu_id):
 	original_img_mean = original_img_mean.astype(np.uint8)
 
 	# Set up the Caffe network
-	sys.path.insert(0, os.path.join(CAFFE_ROOT, 'python'))
+	# sys.path.insert(0, os.path.join(CAFFE_ROOT, 'python'))
 
 	if GPU_MODE == True:
 		caffe.set_mode_gpu()
