@@ -146,10 +146,11 @@ def trainClassifierForClass(data, class_id, debug=False):
 		# If this image has no regions
 		if data["train"]["gt"][image_name][0].shape[0] == 0:
 			continue
+
+		# if not os.path.isfile(os.path.join(FEATURES_DIR, image_name + '.ft')):
+		# 	continue
 		
 		# Load features from file for current image
-		if not os.path.isfile(os.path.join(FEATURES_DIR, image_name + '.ft')):
-			continue
 		with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
 			features = cp.load(fp)
 
@@ -186,10 +187,6 @@ def trainClassifierForClass(data, class_id, debug=False):
 			neg_features = features[negative_idx, :]
 		else:
 			neg_features = features[:, :]
-
-		print features
-		print pos_feats.shape
-		print neg_features.shape
 
 		X_train.append(neg_features)
 		y_train.append(np.zeros((neg_features.shape[0], 1)))
