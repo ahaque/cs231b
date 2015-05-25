@@ -23,11 +23,11 @@ IMG_DIR = "../images" # IMG_DIR contains all images
 FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
 CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
-#MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
-#MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
+MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
+MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
 
-MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
-MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
+#MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
+#MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
 
 GPU_MODE = True # Set to True if using GPU
 
@@ -40,8 +40,8 @@ CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
 # The layer and number of features to use from that layer
 # Check the deploy.prototxt file for a list of layers/feature outputs
-FEATURE_LAYER = "fc7"
-NUM_CNN_FEATURES = 4096
+FEATURE_LAYER = "fc6_ft"
+NUM_CNN_FEATURES = 512
 
 NUM_CLASSES = 3 # Number of object classes
 
@@ -85,16 +85,13 @@ def main():
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
-	# Set up Caffe
-	net = initCaffeNetwork(gpu_id)
-
 	# Equivalent to the starter code: train_rcnn.m
 	if args.mode == "train":
 		# For each object class
 		models = []
 		for c in xrange(1, NUM_CLASSES+1):
 			# Train a SVM for this class
-			models.append(trainClassifierForClass(net, data, c))
+			models.append(trainClassifierForClass(data, c))
 
 	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
@@ -103,6 +100,8 @@ def main():
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
 		EXTRACT_MODE = "train"
+		# Set up Caffe
+		net = initCaffeNetwork(gpu_id)
 		# Create the workload for each GPU
 		ls = data[EXTRACT_MODE]["gt"].keys()
 		assignments = list(chunks(ls, num_gpus))
@@ -115,9 +114,11 @@ def main():
 			# Also need to extract features from GT bboxes
 			# Sometimes an image has zero GT bboxes
 			if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] > 0:
-				regions = data[EXTRACT_MODE]["ssearch"][image_name]
-			else:
 				regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
+				continue
+			else:
+				print "Found image:", image_name
+				regions = data[EXTRACT_MODE]["ssearch"][image_name]
 
 			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
@@ -131,7 +132,7 @@ def chunks(items, num_gpus):
 	for i in xrange(0, len(items), n):
 		yield items[i:i+n]
 
-def trainClassifierForClass(net, data, class_id, debug=False):
+def trainClassifierForClass(data, class_id, debug=False):
 	# Go through each image and build the training set with pos/neg labels
 	X_train = []
 	y_train = []
@@ -143,7 +144,9 @@ def trainClassifierForClass(net, data, class_id, debug=False):
 			continue
 		
 		# Load features from file for current image
-		features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+		#features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+		with open(os.path.join(FEATURES_DIR, image_name + '.npy'), "rb") as npy:
+			features = np.load(npy)
 
 		labels = np.array(data["train"]["gt"][image_name][0][0])
 		gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int16) # Otherwise uint8 by default
