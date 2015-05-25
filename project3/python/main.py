@@ -99,6 +99,9 @@ def main():
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
 		EXTRACT_MODE = "train"
+
+		if not os.path.isdir(FEATURES_DIR):
+			os.makedirs(FEATURES_DIR)
 		
 		# Set up Caffe
 		net = initCaffeNetwork(gpu_id)
@@ -124,7 +127,7 @@ def main():
 			features = extractRegionFeatsFromImage(net, img, regions)
 			print "\tTotal Time: %f seconds" % (time.time() - start)
 
-			with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
+			with open(os.path.join(FEATURES_DIR, image_name + '.ft'), 'w') as fp:
 				cp.dump(features, fp)
 
 # Takes a list and splits it into roughly equal parts
