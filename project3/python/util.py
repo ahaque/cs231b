@@ -26,15 +26,19 @@ def computeOverlap(bbox, bboxes):
 	h = y2 - y1 + 1
 
 	inter = np.multiply(w, h)
+	
 	bboxes_area = np.multiply((bboxes[:,2]-bboxes[:,0]+1), (bboxes[:,3]-bboxes[:,1]+1))
 	bbox_area = np.multiply((bbox[2]-bbox[0]+1),(bbox[3]-bbox[1]+1))
+	union = bboxes_area + (bbox_area * np.ones(bboxes_area.shape)) - inter
 
-	# Add 1e-7 to prevent divide by zero errors
-	overlap = np.divide(1.0*inter, bboxes_area + bbox_area - inter + 1e-7)
-	# If the denominator was zero, the 1e-7 will make overlap > 1
-	overlap[overlap > 1] = 0
+	inter[w <= 0] = 0
+	inter[h <= 0] = 0
+	union[w <= 0] = 1
+	union[h <= 0] = 1
 
-	overlap[w <= 0] = 0
-	overlap[h <= 0] = 0
+	overlap = np.divide(1.0*inter, union)
+
+	# overlap[w <= 0] = 0
+	# overlap[h <= 0] = 0
 
 	return overlap

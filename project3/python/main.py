@@ -7,6 +7,7 @@ import caffe
 import util
 import threading
 
+import cPickle as cp
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -20,7 +21,7 @@ from sklearn import svm
 
 ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
-FEATURES_DIR = "../features/vgg16_fc7" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
 CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
 #MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
@@ -74,8 +75,6 @@ def main():
 		num_gpus = int(args.num_gpus)
 		gpu_id = int(args.gpu_id)
 
-
-
 	# Read the Matlab data files
 	# data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
 	# data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
@@ -84,16 +83,13 @@ def main():
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
-	# Set up Caffe
-	net = initCaffeNetwork(gpu_id)
-
 	# Equivalent to the starter code: train_rcnn.m
 	if args.mode == "train":
 		# For each object class
 		models = []
 		for c in xrange(1, NUM_CLASSES+1):
 			# Train a SVM for this class
-			models.append(trainClassifierForClass(net, data, c))
+			models.append(trainClassifierForClass(data, c))
 
 	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
@@ -102,6 +98,10 @@ def main():
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
 		EXTRACT_MODE = "train"
+
+		# Set up Caffe
+		net = initCaffeNetwork(gpu_id)
+
 		# Create the workload for each GPU
 		#ls = os.listdir(IMG_DIR)
 		ls = data[EXTRACT_MODE]["gt"].keys()
@@ -124,7 +124,9 @@ def main():
 
 			features = extractRegionFeatsFromImage(net, img, regions)
 			print "\tTotal Time: %f seconds" % (time.time() - start)
-			np.save(os.path.join(FEATURES_DIR, image_name), features)
+
+			with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
+				cp.dump(features, fp)
 
 # Takes a list and splits it into roughly equal parts
 def chunks(items, num_gpus):
@@ -132,7 +134,7 @@ def chunks(items, num_gpus):
 	for i in xrange(0, len(items), n):
 		yield items[i:i+n]
 
-def trainClassifierForClass(net, data, class_id, debug=False):
+def trainClassifierForClass(data, class_id, debug=False):
 	# Go through each image and build the training set with pos/neg labels
 	X_train = []
 	y_train = []
@@ -144,16 +146,15 @@ def trainClassifierForClass(net, data, class_id, debug=False):
 			continue
 		
 		# Load features from file for current image
-		features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+		# print image_name
+		with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
+			features = cp.load(fp)
 
 		labels = np.array(data["train"]["gt"][image_name][0][0])
-		gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int16) # Otherwise uint8 by default
-		regions = data["train"]["ssearch"][image_name]
+		gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
+		regions = data["train"]["ssearch"][image_name].astype(np.int32)
 
 		IDX = np.where(labels == class_id)[0]
-		# If no GT bboxes for this class, skip this image
-		if len(IDX) == 0:
-			continue
 
 		# Add only GT box as a positive (see Sec 2.3 Object category classifiers section)
 		# Need to extract the positive features
@@ -162,9 +163,9 @@ def trainClassifierForClass(net, data, class_id, debug=False):
 		# Corresponding to the correct classes
 		
 		#img = cv2.imread(os.path.join(IMG_DIR, image_name))
-		#pos_feats = extractRegionFeatsFromImage(net, img, gt_bboxes[IDX])
-		#X_train.append(pos_feats)
-		#y_train.append(np.ones((pos_feats.shape[0], 1)))
+		pos_feats = features[IDX, :]
+		X_train.append(pos_feats)
+		y_train.append(np.ones((pos_feats.shape[0], 1)))
 
 		# If overlap is low < 0.3 for ALL bboxes of this class
 		# Then add to X_train as a negative example
@@ -172,11 +173,16 @@ def trainClassifierForClass(net, data, class_id, debug=False):
 		for j, gt_bbox in enumerate(gt_bboxes[IDX]):
 			overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
 
-		highest_overlaps = overlaps.max(0)
+		# If no GT bboxes for this class, highest_overlaps would be all
+		# zeros, and all regions would be negative features
+		if len(IDX) != 0:
+			highest_overlaps = overlaps.max(0)
 
-		# Only add negative examples where bbox is far from all GT boxes
-		negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
-		neg_features = features[negative_idx, :]
+			# Only add negative examples where bbox is far from all GT boxes
+			negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
+			neg_features = features[negative_idx, :]
+		else:
+			neg_features = features[:, :]
 
 		X_train.append(neg_features)
 		y_train.append(np.zeros((neg_features.shape[0], 1)))
@@ -208,6 +214,7 @@ def trainClassifierForClass(net, data, class_id, debug=False):
 
 	end_time = time.time()
 	print 'Total Time: %d seconds'%(end_time - start_time)
+
 ################################################################
 # initCaffeNetwork()
 #   Initializes Caffe and loads the appropriate model files
