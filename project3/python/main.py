@@ -87,9 +87,18 @@ def main():
 	if args.mode == "train":
 		# For each object class
 		models = []
+		threads = []
+
 		for c in xrange(1, NUM_CLASSES+1):
 			# Train a SVM for this class
 			models.append(trainClassifierForClass(data, c))
+			#thread = threading.Thread(target=trainClassifierForClass, args=[data, c])
+			#hread.start()
+			#threads.append(thread)
+
+		#print "Waiting for threads to finish..."
+		#for thread in threads:
+		#    thread.join()
 
 	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
@@ -141,7 +150,13 @@ def trainClassifierForClass(data, class_id, debug=False):
 	y_train = []
 	start_time = time.time()
 	num_images = len(data["train"]["gt"].keys())
+	### Timers
+	begin_time = time.time()
+	read_time = 0.0
+	overlap_time = 0.0
+	normalize_time = 0.0
 	for i, image_name in enumerate(data["train"]["gt"].keys()):
+		start_time = time.time()
 		# data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
 		# data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
 		# data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
@@ -150,6 +165,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 		# 	continue
 		
 		# Load features from file for current image
+
 		with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
 			features = cp.load(fp)
 
@@ -158,20 +174,28 @@ def trainClassifierForClass(data, class_id, debug=False):
 		# If no GT boxes in image, add all regions as negative
 		if num_gt_bboxes == 0:
 			neg_features = features
+			start_time = time.time()
 			X_train.append(normalizeFeatures(neg_features))
 			y_train.append(np.zeros((neg_features.shape[0], 1)))
+			normalize_time += time.time() - start_time
 		else:
+			start_time = time.time()
 			labels = np.array(data["train"]["gt"][image_name][0][0])
 			gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
 		
 			IDX = np.where(labels == class_id)[0]
-
+			read_time += time.time() - start_time
 			# ADD POSITIVE EXAMPLES
+
 			pos_feats = features[IDX, :]
+			start_time = time.time()
 			X_train.append(normalizeFeatures(pos_feats))
 			y_train.append(np.ones((pos_feats.shape[0], 1)))
+			normalize_time += time.time() - start_time
 
 			# If overlap is low < 0.3 for ALL bboxes of this class, then add to X_train as a negative example.
+			start_time = time.time()
+
 			regions = data["train"]["ssearch"][image_name].astype(np.int32) 
 			overlaps = np.zeros((len(IDX), regions.shape[0]))
 
@@ -189,22 +213,27 @@ def trainClassifierForClass(data, class_id, debug=False):
 				neg_features = features[negative_idx, :]
 			else:
 				neg_features = features
+			overlap_time += (time.time() - start_time)
 
+			start_time = time.time()
 			X_train.append(normalizeFeatures(neg_features))
 			y_train.append(np.zeros((neg_features.shape[0], 1)))
+			normalize_time += time.time() - start_time
 
-		if debug:
-			print "-------------------------------------"
-		if i % 1 == 0:
-			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- start_time)
+		if i % 50 == 0:
+			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- begin_time)
 
+	print "Read Time:", read_time
+	print "Overlap Time:", overlap_time
+	print "Normalize Time:", normalize_time
 
 	X_train = np.vstack(tuple(X_train))
+	X_train = np.concatenate((np.ones((X_train.shape[0], 1)), X_train), axis=1) # Add the bias term
 	y_train = np.squeeze(np.vstack(tuple(y_train))) # Makes it a 1D array, required by SVM
 	print 'classifier num total', X_train.shape, y_train.shape
 
 	# Train the SVM
-	model = svm.LinearSVC(penalty="l1")
+	model = svm.LinearSVC(penalty="l1", dual=False)
 	start_time = time.time()
 	print "Training SVM..."
 	model.fit(X_train, y_train)
@@ -216,10 +245,11 @@ def trainClassifierForClass(data, class_id, debug=False):
 	num_correct = np.sum(y_train == y_hat)
 	print "Completed in %f seconds" % (time.time() - start_time)
 	print "Training Accuracy:", 1.0 * num_correct / y_train.shape[0]
-
+	print "With bias term and l1"
 
 	end_time = time.time()
 	print 'Total Time: %d seconds'%(end_time - start_time)
+	print "-------------------------------------"
 
 ################################################################
 # normalizeFeatures(features)
@@ -239,7 +269,7 @@ def normalizeFeatures(features):
 
 	result = features - np.tile(mu, (features.shape[1], 1)).T
 	result = np.divide(result, np.tile(var, (features.shape[1], 1)).T)
-	
+
 	return result
 
 
