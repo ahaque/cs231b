@@ -158,7 +158,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 		# If no GT boxes in image, add all regions as negative
 		if num_gt_bboxes == 0:
 			neg_features = features
-			X_train.append(neg_features)
+			X_train.append(normalizeFeatures(neg_features))
 			y_train.append(np.zeros((neg_features.shape[0], 1)))
 		else:
 			labels = np.array(data["train"]["gt"][image_name][0][0])
@@ -166,20 +166,19 @@ def trainClassifierForClass(data, class_id, debug=False):
 		
 			IDX = np.where(labels == class_id)[0]
 
-			# Add only GT box as a positive (see Sec 2.3 Object category classifiers section)
-			# Need to extract the positive features		
+			# ADD POSITIVE EXAMPLES
 			pos_feats = features[IDX, :]
-			X_train.append(pos_feats)
+			X_train.append(normalizeFeatures(pos_feats))
 			y_train.append(np.ones((pos_feats.shape[0], 1)))
 
-			# If overlap is low < 0.3 for ALL bboxes of this class
-			# Then add to X_train as a negative example.
+			# If overlap is low < 0.3 for ALL bboxes of this class, then add to X_train as a negative example.
 			regions = data["train"]["ssearch"][image_name].astype(np.int32) 
 			overlaps = np.zeros((len(IDX), regions.shape[0]))
 
 			for j, gt_bbox in enumerate(gt_bboxes[IDX]):
 				overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
 
+			# ADD NEGATIVE EXAMPLES
 			# If no GT bboxes for this class, highest_overlaps would be all
 			# zeros, and all regions would be negative features
 			if len(IDX) != 0:
@@ -191,7 +190,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 			else:
 				neg_features = features
 
-			X_train.append(neg_features)
+			X_train.append(normalizeFeatures(neg_features))
 			y_train.append(np.zeros((neg_features.shape[0], 1)))
 
 		if debug:
@@ -205,7 +204,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 	print 'classifier num total', X_train.shape, y_train.shape
 
 	# Train the SVM
-	model = svm.LinearSVC()
+	model = svm.LinearSVC(penalty="l1")
 	start_time = time.time()
 	print "Training SVM..."
 	model.fit(X_train, y_train)
@@ -221,6 +220,28 @@ def trainClassifierForClass(data, class_id, debug=False):
 
 	end_time = time.time()
 	print 'Total Time: %d seconds'%(end_time - start_time)
+
+################################################################
+# normalizeFeatures(features)
+#	Takes a matrix of features (each row is a feature) and
+#	normalizes each row to mean=0, variance=1
+#
+# Input: features (n x NUM_CNN_FEATURES matrix)
+# Output: result (n x NUM_CNN_FEATURES matrix)
+#
+def normalizeFeatures(features):
+	# If no features, return
+	if features.shape[0] == 0:
+		return features
+
+	mu = np.mean(features, axis=1)
+	var = np.std(features, axis=1)
+
+	result = features - np.tile(mu, (features.shape[1], 1)).T
+	result = np.divide(result, np.tile(var, (features.shape[1], 1)).T)
+	
+	return result
+
 
 ################################################################
 # initCaffeNetwork()
