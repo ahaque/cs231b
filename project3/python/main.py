@@ -24,18 +24,18 @@ IMG_DIR = "../images" # IMG_DIR contains all images
 FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
 # CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
-MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
-MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
+#MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
+#MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
 
-#MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
-#MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
+MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
+MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
 
 GPU_MODE = True # Set to True if using GPU
 
 # CNN Batch size. Depends on the hardware memory
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
-CNN_BATCH_SIZE = 850 # CNN batch size
-CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
+CNN_BATCH_SIZE = 55 # CNN batch size
+CNN_INPUT_SIZE = 224 # Input size of the CNN input image (after cropping)
 
 CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
