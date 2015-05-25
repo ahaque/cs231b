@@ -98,7 +98,6 @@ def main():
 
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
-		EXTRACT_MODE = "train"
 
 		if not os.path.isdir(FEATURES_DIR):
 			os.makedirs(FEATURES_DIR)
@@ -106,29 +105,30 @@ def main():
 		# Set up Caffe
 		net = initCaffeNetwork(gpu_id)
 
-		# Create the workload for each GPU
-		ls = data[EXTRACT_MODE]["gt"].keys()
-		assignments = list(chunks(ls, num_gpus))
-		payload = assignments[gpu_id]
+		for EXTRACT_MODE in ["train", "test"]:
+			# Create the workload for each GPU
+			ls = data[EXTRACT_MODE]["gt"].keys()
+			assignments = list(chunks(ls, num_gpus))
+			payload = assignments[gpu_id]
 
-		print "Processing %i images on GPU ID %i. Total GPUs: %i" % (len(payload), gpu_id, num_gpus)
-		for i, image_name in enumerate(payload):
-			start = time.time()
-			img = cv2.imread(os.path.join(IMG_DIR, image_name))
-			# Also need to extract features from GT bboxes
-			# Sometimes an image has zero GT bboxes
-			if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] > 0:
-				regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
-			else:
-				regions = data[EXTRACT_MODE]["ssearch"][image_name]
+			print "Processing %i images on GPU ID %i. Total GPUs: %i" % (len(payload), gpu_id, num_gpus)
+			for i, image_name in enumerate(payload):
+				start = time.time()
+				img = cv2.imread(os.path.join(IMG_DIR, image_name))
+				# Also need to extract features from GT bboxes
+				# Sometimes an image has zero GT bboxes
+				if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] > 0:
+					regions = np.vstack((data[EXTRACT_MODE]["gt"][image_name][1], data[EXTRACT_MODE]["ssearch"][image_name]))
+				else:
+					regions = data[EXTRACT_MODE]["ssearch"][image_name]
 
-			print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
+				print "Processing Image %i: %s\tRegions: %i" % (i, image_name, regions.shape[0])
 
-			features = extractRegionFeatsFromImage(net, img, regions)
-			print "\tTotal Time: %f seconds" % (time.time() - start)
+				features = extractRegionFeatsFromImage(net, img, regions)
+				print "\tTotal Time: %f seconds" % (time.time() - start)
 
-			with open(os.path.join(FEATURES_DIR, image_name + '.ft'), 'w') as fp:
-				cp.dump(features, fp)
+				with open(os.path.join(FEATURES_DIR, image_name + '.ft'), 'w') as fp:
+					cp.dump(features, fp)
 
 # Takes a list and splits it into roughly equal parts
 def chunks(items, num_gpus):
