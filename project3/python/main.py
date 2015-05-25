@@ -21,7 +21,7 @@ from sklearn import svm
 
 ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
-FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/vgg16_fc7" # FEATURES_DIR stores the region features for each image
 
 # CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
 #MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
@@ -41,8 +41,8 @@ CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
 # The layer and number of features to use from that layer
 # Check the deploy.prototxt file for a list of layers/feature outputs
-FEATURE_LAYER = "fc6_ft"
-NUM_CNN_FEATURES = 512
+FEATURE_LAYER = "fc7"
+NUM_CNN_FEATURES = 4096
 
 NUM_CLASSES = 3 # Number of object classes
 
@@ -156,8 +156,7 @@ def trainClassifierForClass(data, class_id, debug=False):
 
 		labels = np.array(data["train"]["gt"][image_name][0][0])
 		gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
-		regions = data["train"]["ssearch"][image_name].astype(np.int32)
-
+		regions = data["train"]["ssearch"][image_name].astype(np.int32) 
 		IDX = np.where(labels == class_id)[0]
 
 		# Add only GT box as a positive (see Sec 2.3 Object category classifiers section)
