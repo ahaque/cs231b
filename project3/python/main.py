@@ -21,28 +21,27 @@ from sklearn import svm
 
 ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
-FEATURES_DIR = "../features/vgg16_fc7" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 
-# CAFFE_ROOT = '/home/ubuntu/caffe' # Caffe installation directory
-#MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
-#MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
+MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
+MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
 
-MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
-MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
+#MODEL_SNAPSHOT = "../ml/VGG_ILSVRC_16_layers.caffemodel"
+#MODEL_DEPLOY = "../ml/VGG_ILSVRC_16_layers_deploy.prototxt"
 
 GPU_MODE = True # Set to True if using GPU
 
 # CNN Batch size. Depends on the hardware memory
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
-CNN_BATCH_SIZE = 55 # CNN batch size
-CNN_INPUT_SIZE = 224 # Input size of the CNN input image (after cropping)
+CNN_BATCH_SIZE = 2000 # CNN batch size
+CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
 
 CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 
 # The layer and number of features to use from that layer
 # Check the deploy.prototxt file for a list of layers/feature outputs
-FEATURE_LAYER = "fc7"
-NUM_CNN_FEATURES = 4096
+FEATURE_LAYER = "fc6_ft"
+NUM_CNN_FEATURES = 512
 
 NUM_CLASSES = 3 # Number of object classes
 
@@ -143,9 +142,9 @@ def trainClassifierForClass(data, class_id, debug=False):
 	start_time = time.time()
 	num_images = len(data["train"]["gt"].keys())
 	for i, image_name in enumerate(data["train"]["gt"].keys()):
-		# If this image has no regions
-		if data["train"]["gt"][image_name][0].shape[0] == 0:
-			continue
+		# data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
+		# data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
+		# data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
 
 		# if not os.path.isfile(os.path.join(FEATURES_DIR, image_name + '.ft')):
 		# 	continue
@@ -154,45 +153,50 @@ def trainClassifierForClass(data, class_id, debug=False):
 		with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
 			features = cp.load(fp)
 
-		labels = np.array(data["train"]["gt"][image_name][0][0])
-		gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
-		regions = data["train"]["ssearch"][image_name].astype(np.int32) 
-		IDX = np.where(labels == class_id)[0]
+		num_gt_bboxes = data["train"]["gt"][image_name][0].shape[1]
 
-		# Add only GT box as a positive (see Sec 2.3 Object category classifiers section)
-		# Need to extract the positive features
-
-		# TODO: Once feature extraction with GT boxes is done, get the features
-		# Corresponding to the correct classes
-		
-		#img = cv2.imread(os.path.join(IMG_DIR, image_name))
-		pos_feats = features[IDX, :]
-		X_train.append(pos_feats)
-		y_train.append(np.ones((pos_feats.shape[0], 1)))
-
-		# If overlap is low < 0.3 for ALL bboxes of this class
-		# Then add to X_train as a negative example
-		overlaps = np.zeros((len(IDX), regions.shape[0]))
-		for j, gt_bbox in enumerate(gt_bboxes[IDX]):
-			overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
-
-		# If no GT bboxes for this class, highest_overlaps would be all
-		# zeros, and all regions would be negative features
-		if len(IDX) != 0:
-			highest_overlaps = overlaps.max(0)
-
-			# Only add negative examples where bbox is far from all GT boxes
-			negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
-			neg_features = features[negative_idx, :]
+		# If no GT boxes in image, add all regions as negative
+		if num_gt_bboxes == 0:
+			neg_features = features
+			X_train.append(neg_features)
+			y_train.append(np.zeros((neg_features.shape[0], 1)))
 		else:
-			neg_features = features[:, :]
+			labels = np.array(data["train"]["gt"][image_name][0][0])
+			gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
+		
+			IDX = np.where(labels == class_id)[0]
 
-		X_train.append(neg_features)
-		y_train.append(np.zeros((neg_features.shape[0], 1)))
+			# Add only GT box as a positive (see Sec 2.3 Object category classifiers section)
+			# Need to extract the positive features		
+			pos_feats = features[IDX, :]
+			X_train.append(pos_feats)
+			y_train.append(np.ones((pos_feats.shape[0], 1)))
+
+			# If overlap is low < 0.3 for ALL bboxes of this class
+			# Then add to X_train as a negative example.
+			regions = data["train"]["ssearch"][image_name].astype(np.int32) 
+			overlaps = np.zeros((len(IDX), regions.shape[0]))
+
+			for j, gt_bbox in enumerate(gt_bboxes[IDX]):
+				overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
+
+			# If no GT bboxes for this class, highest_overlaps would be all
+			# zeros, and all regions would be negative features
+			if len(IDX) != 0:
+				highest_overlaps = overlaps.max(0)
+
+				# Only add negative examples where bbox is far from all GT boxes
+				negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
+				neg_features = features[negative_idx, :]
+			else:
+				neg_features = features
+
+			X_train.append(neg_features)
+			y_train.append(np.zeros((neg_features.shape[0], 1)))
 
 		if debug:
 			print "-------------------------------------"
-		if i % 100 == 0:
+		if i % 1 == 0:
 			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- start_time)
 
 
