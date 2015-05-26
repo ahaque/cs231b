@@ -22,6 +22,7 @@ from sklearn import svm
 ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 IMG_DIR = "../images" # IMG_DIR contains all images
 FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
+MODELS_DIR = '../models/'
 
 MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
 MODEL_SNAPSHOT = "../ml/cnn512.caffemodel" # CNN weights
@@ -89,12 +90,23 @@ def main():
 		models = []
 		threads = []
 
+		if not os.path.isdir(MODELS_DIR):
+			os.makedirs(MODELS_DIR)
+
 		for c in xrange(1, NUM_CLASSES+1):
 			# Train a SVM for this class
-			models.append(trainClassifierForClass(data, c))
+			model = trainClassifierForClass(data, c)
+			model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(c, FEATURE_LAYER))
+			with open(model_file_name, 'w') as fp:
+				cp.dump(model, fp)
 			#thread = threading.Thread(target=trainClassifierForClass, args=[data, c])
 			#hread.start()
 			#threads.append(thread)
+
+		negative_model = trainBackgroundClassifier(data)
+		model_file_name = os.path.join(MODELS_DIR, 'svm_n_%s.mdl'%(FEATURE_LAYER))
+		with open(model_file_name, 'w') as fp:
+			cp.dump(model, fp)
 
 		#print "Waiting for threads to finish..."
 		#for thread in threads:
@@ -150,13 +162,8 @@ def trainClassifierForClass(data, class_id, debug=False):
 	y_train = []
 	start_time = time.time()
 	num_images = len(data["train"]["gt"].keys())
-	### Timers
-	begin_time = time.time()
-	read_time = 0.0
-	overlap_time = 0.0
-	normalize_time = 0.0
-	for i, image_name in enumerate(data["train"]["gt"].keys()):
-		start_time = time.time()
+
+	for i, image_name in enumerate(data["train"]["gt"].keys()):		
 		# data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
 		# data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
 		# data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
@@ -174,28 +181,20 @@ def trainClassifierForClass(data, class_id, debug=False):
 		# If no GT boxes in image, add all regions as negative
 		if num_gt_bboxes == 0:
 			neg_features = features
-			start_time = time.time()
 			X_train.append(normalizeFeatures(neg_features))
 			y_train.append(np.zeros((neg_features.shape[0], 1)))
-			normalize_time += time.time() - start_time
 		else:
-			start_time = time.time()
 			labels = np.array(data["train"]["gt"][image_name][0][0])
 			gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
 		
 			IDX = np.where(labels == class_id)[0]
-			read_time += time.time() - start_time
 			# ADD POSITIVE EXAMPLES
 
 			pos_feats = features[IDX, :]
-			start_time = time.time()
 			X_train.append(normalizeFeatures(pos_feats))
 			y_train.append(np.ones((pos_feats.shape[0], 1)))
-			normalize_time += time.time() - start_time
 
 			# If overlap is low < 0.3 for ALL bboxes of this class, then add to X_train as a negative example.
-			start_time = time.time()
-
 			regions = data["train"]["ssearch"][image_name].astype(np.int32) 
 			overlaps = np.zeros((len(IDX), regions.shape[0]))
 
@@ -208,48 +207,105 @@ def trainClassifierForClass(data, class_id, debug=False):
 			if len(IDX) != 0:
 				highest_overlaps = overlaps.max(0)
 
+				# TODO: PLOTTT THIISSS
+				# import matplotlib.pyplot as plt
+				# plt.hist(highest_overlaps[highest_overlaps>0.001], bins=200)
+				# plt.show()
+
 				# Only add negative examples where bbox is far from all GT boxes
 				negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
 				neg_features = features[negative_idx, :]
 			else:
 				neg_features = features
-			overlap_time += (time.time() - start_time)
 
-			start_time = time.time()
 			X_train.append(normalizeFeatures(neg_features))
 			y_train.append(np.zeros((neg_features.shape[0], 1)))
-			normalize_time += time.time() - start_time
 
-		if i % 50 == 0:
-			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- begin_time)
-
-	print "Read Time:", read_time
-	print "Overlap Time:", overlap_time
-	print "Normalize Time:", normalize_time
+		if i % 50 == 0 and i > 0:
+			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- start_time)
 
 	X_train = np.vstack(tuple(X_train))
 	X_train = np.concatenate((np.ones((X_train.shape[0], 1)), X_train), axis=1) # Add the bias term
 	y_train = np.squeeze(np.vstack(tuple(y_train))) # Makes it a 1D array, required by SVM
 	print 'classifier num total', X_train.shape, y_train.shape
 
+	return trainClassifier(X_train, y_train)
+
+def trainBackgroundClassifier(data, debug=False):
+	# Go through each image and build the training set with pos/neg labels
+	X_train = []
+	y_train = []
+	start_time = time.time()
+	num_images = len(data["train"]["gt"].keys())
+
+	for i, image_name in enumerate(data["train"]["gt"].keys()):		
+		# Load features from file for current image
+		with open(os.path.join(FEATURES_DIR, image_name + '.ft')) as fp:
+			features = cp.load(fp)
+
+		num_gt_bboxes = data["train"]["gt"][image_name][0].shape[1]
+
+		# If no GT boxes in image, add all regions as positive
+		if num_gt_bboxes == 0:
+			pos_features = features
+			X_train.append(normalizeFeatures(pos_features))
+			y_train.append(np.ones((pos_features.shape[0], 1)))
+		else:
+			gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
+
+			# ADD NEGATIVE EXAMPLES
+			neg_features = features[0:num_gt_bboxes, :]
+			X_train.append(normalizeFeatures(neg_features))
+			y_train.append(np.zeros((neg_features.shape[0], 1)))
+
+			
+			regions = data["train"]["ssearch"][image_name].astype(np.int32) 
+			overlaps = np.zeros((num_gt_bboxes, regions.shape[0]))
+			
+			for j, gt_bbox in enumerate(gt_bboxes):
+				overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
+
+			# ADD POSITIVE EXAMPLES
+			# If no GT bboxes for this class, highest_overlaps would be all
+			# zeros, and all regions would be negative features
+			highest_overlaps = overlaps.max(0)
+
+			# Only add negative examples where bbox is far from all GT boxes
+			negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
+			neg_features = features[negative_idx, :]
+
+			X_train.append(normalizeFeatures(neg_features))
+			y_train.append(np.zeros((neg_features.shape[0], 1)))
+
+		if i % 50 == 0 and i > 0:
+			print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()- start_time)
+
+	X_train = np.vstack(tuple(X_train))
+	X_train = np.concatenate((np.ones((X_train.shape[0], 1)), X_train), axis=1) # Add the bias term
+	y_train = np.squeeze(np.vstack(tuple(y_train))) # Makes it a 1D array, required by SVM
+	print 'classifier num total', X_train.shape, y_train.shape
+
+	return trainClassifier(X_train, y_train)
+	
+def trainClassifier(X, y):
+	start_time = time.time()
+
 	# Train the SVM
 	model = svm.LinearSVC(penalty="l1", dual=False)
-	start_time = time.time()
 	print "Training SVM..."
-	model.fit(X_train, y_train)
-	print "Completed in %f seconds" % (time.time() - start_time)
+	model.fit(X, y)
 
 	# Compute training accuracy
 	print "Testing SVM..."
-	y_hat = model.predict(X_train)
-	num_correct = np.sum(y_train == y_hat)
-	print "Completed in %f seconds" % (time.time() - start_time)
+	y_hat = model.predict(X)
+	num_correct = np.sum(y == y_hat)
 	print "Training Accuracy:", 1.0 * num_correct / y_train.shape[0]
-	print "With bias term and l1"
 
-	end_time = time.time()
-	print 'Total Time: %d seconds'%(end_time - start_time)
+	print 'Total Time: %d seconds'%(time.time() - start_time)
 	print "-------------------------------------"
+
+	return model
+
 
 ################################################################
 # normalizeFeatures(features)
@@ -265,10 +321,10 @@ def normalizeFeatures(features):
 		return features
 
 	mu = np.mean(features, axis=1)
-	var = np.std(features, axis=1)
+	std = np.std(features, axis=1)
 
 	result = features - np.tile(mu, (features.shape[1], 1)).T
-	result = np.divide(result, np.tile(var, (features.shape[1], 1)).T)
+	result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
 
 	return result
 
@@ -483,3 +539,9 @@ if __name__ == "__main__":
 	main()
 
 
+## TODO
+# Randomly select validation set
+# Argparse all the gazillion options
+# Try L2 later, try strength
+# More positive examples from overlapping boxes
+# Weigh the positive examples more
