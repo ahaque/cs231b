@@ -3,7 +3,7 @@ import sys
 import time
 import os.path
 import argparse
-# import caffe
+import caffe
 import util
 import threading
 
@@ -156,10 +156,13 @@ def chunks(items, num_gpus):
 	for i in xrange(0, len(items), n):
 		yield items[i:i+n]
 
-def trainClassifierForClass(data, class_id, epochs=1, memory_size=2000, debug=False):
+def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=False):
 	X_pos = []
 	X_neg = []
-	X_neg_small = []
+	X_neg_small_trained = [] # WHAT THE SMALL SVM IS TRAINED ON
+	X_neg_curr_image = [] # NEGS FOR CURR IMAGE ONLY
+	X_neg_hard_since_train = [] # ALL HARD NEGS SINCE LAST TRAIN
+	X_neg_initial = [] # ALL NEGS FOR SVM TRAIN
 	curr_num_hard_negs = 0
 	
 	num_images = len(data["train"]["gt"].keys())
@@ -170,7 +173,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=2000, debug=Fa
 			if not os.path.isfile(os.path.join(FEATURES_DIR, image_name + '.npy')):
 				continue
 
-			X_neg_curr = []
+			X_neg_curr_image = []
 			# Load features from file for current image
 			features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
 
@@ -182,14 +185,14 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=2000, debug=Fa
 
 			if num_gt_bboxes == 0: # Case 1
 				# All regions are negative examples
-				X_neg_curr.append(features)
+				X_neg_curr_image.append(features)
 			else:
 				labels = np.array(data["train"]["gt"][image_name][0][0])
 				gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
 				IDX = np.where(labels == class_id)[0]
 
 				if len(IDX) == 0: # Case 2
-					X_neg_curr.append(features)
+					X_neg_curr_image.append(features)
 				else: # Case 3
 					# Compute Overlaps
 					regions = data["train"]["ssearch"][image_name].astype(np.int32) 
@@ -211,77 +214,101 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=2000, debug=Fa
 
 					# Only add negative examples where bbox is far from all GT boxes
 					negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
-					X_neg_curr.append(features[negative_idx, :])
+					X_neg_curr_image.append(features[negative_idx, :])
 
+					# if len(X_neg_small) != 0:
+					# 	print 'Num Regions:%d, Negatives:%d'%(regions.shape[0], stack(X_neg_small).shape[0])
+					# else:
+					# 	print 'Num Regions:%d, Negatives:%d'%(regions.shape[0], 0)
 
-			X_neg_small += X_neg_curr
-			# Create/Use small SVM
-			pos_features = stack(X_pos)
-			neg_features = stack(X_neg_small)
-			num_neg_features = neg_features.shape[0]
-
-			# X_neg_small = [neg_features_before_svm_train]
-			# X_neg_small = [hard_negs_from_image10   some_neg_features_before_svm_train]
-			# X_neg_small = [hard_negs_from_image11   hard_negs_from_image10   some_some_neg_features_before_svm_train]
+			if small_svm is None:
+				X_neg_initial += X_neg_curr_image
+			
 			hard_negs = np.zeros((0,1))
 			if small_svm is not None:
+				pos_features = stack(X_pos)
+				neg_features = stack(X_neg_curr_image)
+				num_neg_features = neg_features.shape[0]
+
 				# Classify negative features using small_svm
 				# Find features classified as positive
 				X = normalizeFeatures(neg_features) # Normalize
 				X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
 
-				# X = ALL SVM negatives + curr image negatives
+				# X = curr image negatives
 				y_hat = small_svm.predict(X)
 
 				hard_idx = np.where(y_hat == 1)[0]
 				hard_negs = neg_features[hard_idx, :]
-				curr_num_hard_negs = hard_negs.shape[0]
+				print 'BEFORE', curr_num_hard_negs
+				curr_num_hard_negs += hard_negs.shape[0]
+				print 'AFTER', curr_num_hard_negs
 				if hard_negs.shape[0] == 0:
+					# X_neg_small = X_neg_small[0:-len(X_neg_curr)]
+					print "Finished %i / %i.\tElapsed: %f (Hard: %d)" % (i, num_images, time.time()-start_time, curr_num_hard_negs)
 					continue
 
-				easy_idx = np.where(y_hat == 0)[0]
-				easy_negs = neg_features[easy_idx, :]
+				X_neg_hard_since_train.append(hard_negs)
 
-				# X_neg_small = ALL previous negative examples 
-				# hard_negs = current image hard negative examples
-				X = normalizeFeatures(easy_negs) # Normalize
-				X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
-				dists = small_svm.decision_function(X)
-				sorted_idx = np.argsort(dists)
+				# easy_negs = stack(X_neg_small_trained)
+				# X_neg_small = [hard_negs, easy_negs]
 
-				num_easy_negs = max(0, memory_size - hard_negs.shape[0])
-				if num_easy_negs > 0:
-					easy_negs = easy_negs[sorted_idx[0:num_easy_negs], :]
-					X_neg_small = [hard_negs, easy_negs]
-				else:
-					X_neg_small = [hard_negs]
+				# easy_idx = np.where(y_hat == 0)[0]
+				# easy_negs = neg_features[easy_idx, :]
+				# # X_neg_small = ALL previous negative examples 
+				# # hard_negs = current image hard negative examples
+				# X = normalizeFeatures(easy_negs) # Normalize
+				# X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
+				# dists = small_svm.decision_function(X)
+				# sorted_idx = np.argsort(dists)
+
+				# num_easy_negs = max(0, memory_size - hard_negs.shape[0])
+				# if num_easy_negs > 0:
+				# 	easy_negs = easy_negs[sorted_idx[0:num_easy_negs], :]
+				# 	X_neg_small = [hard_negs, easy_negs]
+				# else:
+				# 	X_neg_small = [hard_negs]
 
 				# Check if we need to retrain SVM
-				if curr_num_hard_negs > 0.5*memory_size:
-					print 'Retraining small SVM...'
-					neg_features = stack(X_neg_small)
-					small_svm = trainSVM(pos_features, neg_features, debug=True)
+				if curr_num_hard_negs > 0.1*memory_size:
+					neg_features = stack(X_neg_small_trained + X_neg_hard_since_train)
+					print 'Retraining small SVM (Pos: %d, Neg: %d)...'%(pos_features.shape[0], neg_features.shape[0])
+
+					small_svm = trainSVM(pos_features[0:4,:], neg_features, debug=True)
+
+					# y_hat = small_svm.predict(X)
+					# hard_idx = np.where(y_hat == 1)[0]
+					# print 'Num hard negs after retraining: %d'%(len(hard_idx))
 
 					X_neg.append(neg_features[0:curr_num_hard_negs, :])
 
+					X_neg_small_trained = X_neg_small_trained + X_neg_hard_since_train
+					print 'BEFORE RESET', curr_num_hard_negs
 					curr_num_hard_negs = 0
+					print 'AFTER RESET', curr_num_hard_negs
+					X_neg_hard_since_train = []
 
-			elif num_neg_features > memory_size and pos_features is not None:
+			elif len(X_pos) > 0:
+				# NO SVM HAS BEEN TRAINED YET
+				# WE HAVE INITIAL NEGS in X_neg_initial
+				pos_features = stack(X_pos)
+				neg_features = stack(X_neg_initial)
+				num_neg_features = neg_features.shape[0]
 				# Train the SVM
-				print 'Training small SVM...'
+				print 'Training small SVM (Pos: %d, Neg: %d)...'%(pos_features.shape[0], neg_features.shape[0])
 				small_svm = trainSVM(pos_features, neg_features)
 
 				X_pos = [pos_features]
 				X_neg = [neg_features]
-				X_neg_small = [neg_features]
+				X_neg_small_trained = [neg_features]
 			
-			print "Finished %i / %i.\tElapsed: %f (Hard: %d)" % (i, num_images, time.time()-start_time, hard_negs.shape[0])
+			print "Finished %i / %i.\tElapsed: %f (Hard: %d)" % (i, num_images, time.time()-start_time, curr_num_hard_negs)
 			if i % 50 == 0 and i > 0:
 				pass
 				# print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()-start_time)
 
 	if curr_num_hard_negs > 0:
-		neg_features = stack(X_neg_small)
+		neg_features = stack(X_neg_small_trained + X_neg_hard_since_train)
 		X_neg.append(neg_features[0:curr_num_hard_negs, :])
 
 	pos_features = stack(X_pos)
