@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 
 from scipy.io import loadmat
 from train_rcnn import *
+from test_rcnn import *
 
 original_img_mean = None
-COLORS = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(255,0,255),(0,255,255)]
 
 def main():
 	# init_globals()
@@ -76,7 +76,7 @@ def main():
 
 	# Equivalent to the starter code: test_rcnn.m
 	if args.mode == "test":
-		pass
+		test(data)
 
 	# Equivalent to the starter code: extract_region_feats.m
 	if args.mode == "extract":
@@ -289,39 +289,10 @@ def readMatrixData(phase):
 
 	for i in xrange(raw_ims["images"].shape[1]):
 		filename, labels, bboxes = raw_ims["images"][0,i]
-		data["gt"][filename[0]] = (labels, bboxes)
-		data["ssearch"][filename[0]] = raw_ssearch["ssearch_boxes"][0,i]
+		data["gt"][filename[0]] = (labels, bboxes.astype(np.int32))
+		data["ssearch"][filename[0]] = raw_ssearch["ssearch_boxes"][0,i].astype(np.int32)
 
 	return data
-
-
-################################################################
-# randomColor()
-#   Generates a random color from our color list
-def randomColor():
-	return COLORS[np.random.randint(0, len(COLORS))]
-
-
-################################################################
-# displayImageWithBboxes(image_name, bboxes)
-#   Displays an image with several bounding boxes
-#
-# Input: image_name (string)
-#		 bboxes (matrix, where each row corresponds to a bbox)
-# Output: None
-#	
-#	displayImageWithBboxes(image_name, data["train"]["gt"][image_name][1])
-#	displayImageWithBboxes("img123.jpg", [[0 0 125 200]])
-#
-def displayImageWithBboxes(image_name, bboxes):
-	img = cv2.imread(os.path.join(IMG_DIR, image_name))
-
-	for bbox in bboxes:
-		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), randomColor(), thickness=2)
-
-	cv2.imshow("Image", img)
-	#cv2.waitKey(0)
-
 
 if __name__ == "__main__":
 	main()
