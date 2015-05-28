@@ -22,10 +22,10 @@ def nms(data):
         overlaps = util.computeOverlap(curr_candidate, rest_candidates)
         IDX = np.where(overlaps > 0.0001)[0]
 
-        mean_bbox = np.vstack((curr_candidate,rest_candidates[IDX]))
-        mean_bbox = np.mean(mean_bbox, axis=0).astype(np.uint32)
+        # mean_bbox = np.vstack((curr_candidate,rest_candidates[IDX]))
+        # mean_bbox = np.mean(mean_bbox, axis=0).astype(np.uint32)
         # print mean_bbox
-        results.append(mean_bbox)
+        results.append(curr_candidate)
 
         if len(np.where(overlaps < 0.0001)[0]) == 0:
             break
@@ -83,6 +83,7 @@ def detect(image_name, models, data, debug=False):
 def test(data, debug=False):
     # Load the classifiers
     models = []
+    rreg
     for c in [1,2,3]:
         model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(c, FEATURE_LAYER))
         with open(model_file_name) as fp:
@@ -90,9 +91,6 @@ def test(data, debug=False):
 
     for i, image_name in enumerate(data["test"]["gt"].keys()):
         detect(image_name, models, data)
-
-
-
 
 def main():
     print "Error: Do not run test_rcnn.py directly. You should use main.py."

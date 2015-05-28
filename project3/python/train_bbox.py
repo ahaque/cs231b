@@ -90,3 +90,33 @@ def trainBboxRegressionForClass(data, class_id):
         models.append(model)
 
     return models
+
+def predictBoundingBox(models, features, proposal_bboxes):
+    targets = np.zeros((features.shape[0], 4))
+    for i, model in enumerate(models):
+        targets[:,i] = model.predict(features)
+
+    # Convert from targets to bboxes
+    Px = 0.5 * (proposal_bboxes[:,0]+proposal_bboxes[:,2])
+    Py = 0.5 * (proposal_bboxes[:,1]+proposal_bboxes[:,3])
+    Pw = proposal_bboxes[:,2] - proposal_bboxes[:,0] + 1
+    Ph = proposal_bboxes[:,3] - proposal_bboxes[:,1] + 1
+
+    # Solve for G using Equations 1,2,3,4 from paper
+    Gx = np.multiply(targets[:,0], Px) + Px
+    Gy = np.multiply(targets[:,1], Py) + Py
+    Gw = np.multiply(Pw, np.exp(targets[:,2]))
+    Gh = np.multiply(Ph, np.exp(targets[:,3]))
+
+    center = np.vstack((Gx.T, Gy.T)).T
+    offset = 0.5*np.vstack((Gw.T, Gh.T)).T
+    top_left = center - offset
+    bottom_right = center + offset
+
+    return np.vstack((top_left.T, bottom_right.T)).T
+
+def main():
+    print "Error: Do not run train_bbox.py directly. You should use main.py."
+
+if __name__ == '__main__':
+    main()

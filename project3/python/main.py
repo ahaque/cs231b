@@ -21,30 +21,6 @@ except ImportError:
 
 original_img_mean = None
 
-def predictBoundingBox(models, features, proposal_bboxes):
-    targets = np.zeros((features.shape[0], 4))
-    for i, model in enumerate(models):
-        targets[:,i] = model.predict(features)
-
-    # Convert from targets to bboxes
-    Px = 0.5 * (proposal_bboxes[:,0]+proposal_bboxes[:,2])
-    Py = 0.5 * (proposal_bboxes[:,1]+proposal_bboxes[:,3])
-    Pw = proposal_bboxes[:,2] - proposal_bboxes[:,0] + 1
-    Ph = proposal_bboxes[:,3] - proposal_bboxes[:,1] + 1
-
-    # Solve for G using Equations 1,2,3,4 from paper
-    Gx = np.multiply(targets[:,0], Px) + Px
-    Gy = np.multiply(targets[:,1], Py) + Py
-    Gw = np.multiply(Pw, np.exp(targets[:,2]))
-    Gh = np.multiply(Ph, np.exp(targets[:,3]))
-
-    center = np.vstack((Gx.T, Gy.T)).T
-    offset = 0.5*np.vstack((Gw.T, Gh.T)).T
-    top_left = center - offset
-    bottom_right = center + offset
-
-    return np.vstack((top_left.T, bottom_right.T)).T
-
 def main():
     # init_globals()
     parser = argparse.ArgumentParser()
@@ -53,7 +29,7 @@ def main():
     parser.add_argument("--gpu_id", help="For feature extraction, GPU ID [0,num_gpus) for which part to run")
     args = parser.parse_args()
 
-    if args.mode not in ["extract", "train", "test", "trainbbox"]:
+    if args.mode not in ["extract", "train", "test", "trainbbox", "testbbox"]:
         print "\tError: MODE must be one of: 'extract' 'train' 'test'"
         sys.exit(-1)
 
@@ -85,9 +61,14 @@ def main():
         with open(model_file_name, 'w') as fp:
             cp.dump(models, fp)
 
+    if args.mode == "testbbox":
+        model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
+        with open(model_file_name) as fp:
+            models = cp.load(fp)
         # Visualize some results
         num_images = len(data["train"]["gt"].keys())
         # Loop through all images and get features and bbox
+        HARD_CODE_CLASS = 2
         for i, image_name in enumerate(data["train"]["gt"].keys()):
             features_file_name = os.path.join(FEATURES_DIR, image_name + '.npy')
             if not os.path.isfile(features_file_name):
@@ -100,12 +81,23 @@ def main():
                 num_gt = len(data["train"]["gt"][image_name][0][0])
             # Need to remove the first few rows since they are GT features
             features = features[num_gt:, :]
-            bboxes = nms(predictBoundingBox(models[2], features, data["train"]["ssearch"][image_name]))
-            util.displayImageWithBboxes(image_name, bboxes[0:100,:])
+
+            gt_bboxes = None
+            if num_gt != 0:
+                labels = np.array(data["train"]["gt"][image_name][0][0])
+                all_gt_bboxes = np.array(data["train"]["gt"][image_name][1])
+                IDX = np.where(labels == HARD_CODE_CLASS)[0]
+
+                if len(IDX) != 0:
+                    gt_bboxes = all_gt_bboxes[IDX, :]
+                else:
+                    gt_bboxes = None
+
+            print '0' if gt_bboxes is None else gt_bboxes.shape
+
             # Convert from targets to bbox
-            
-
-
+            bboxes = nms(predictBoundingBox(models[HARD_CODE_CLASS], features, data["train"]["ssearch"][image_name]))
+            util.displayImageWithBboxes(image_name, bboxes[0:100,:], gt_bboxes)
 
     # Equivalent to the starter code: train_rcnn.m
     if args.mode == "train":
