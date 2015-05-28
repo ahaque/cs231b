@@ -73,3 +73,28 @@ def displayImageWithBboxes(image_name, bboxes):
 
 	cv2.imshow("Image", img)
 	cv2.waitKey(0)
+
+
+################################################################
+# normalizeFeatures(features)
+#   Takes a matrix of features (each row is a feature) and
+#   normalizes each row to mean=0, variance=1
+#
+# Input: features (n x NUM_CNN_FEATURES matrix)
+# Output: result (n x NUM_CNN_FEATURES matrix)
+#
+def normalizeFeatures(features):
+    # If no features, return
+    if features.shape[0] == 0:
+        return features
+
+    mu = np.mean(features, axis=1)
+    std = np.std(features, axis=1)
+
+    result = features - np.tile(mu, (features.shape[1], 1)).T
+    result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
+
+    return result
+
+
+

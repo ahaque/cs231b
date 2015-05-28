@@ -48,6 +48,7 @@ def detect(image_name, models, data, debug=False):
 
     print 'Image:',image_name
     for i, model in enumerate(models):
+        features = util.util.normalizeFeatures(features)
         X = np.concatenate((np.ones((features.shape[0], 1)), features), axis=1) # Add the bias term
         y_hat = model.predict(X)
         confidence_scores = model.decision_function(X)
@@ -89,3 +90,14 @@ def test(data, debug=False):
 
     for i, image_name in enumerate(data["test"]["gt"].keys()):
         detect(image_name, models, data)
+
+
+
+
+def main():
+    print "Error: Do not run test_rcnn.py directly. You should use main.py."
+
+if __name__ == '__main__':
+    main()
+
+

@@ -3,7 +3,7 @@ import sys
 import time
 import os.path
 import argparse
-# import caffe
+import caffe
 from settings import *
 
 import cPickle as cp
@@ -13,18 +13,19 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from train_rcnn import *
 from test_rcnn import *
+from train_bbox import *
 
 original_img_mean = None
 
 def main():
 	# init_globals()
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--mode", help="extract, train, or test", required=True)
+	parser.add_argument("--mode", help="extract, train, test, or trainbbox", required=True)
 	parser.add_argument("--num_gpus", help="For feature extraction, total number of GPUs you will use")
 	parser.add_argument("--gpu_id", help="For feature extraction, GPU ID [0,num_gpus) for which part to run")
 	args = parser.parse_args()
 
-	if args.mode not in ["extract", "train", "test"]:
+	if args.mode not in ["extract", "train", "test", "trainbbox"]:
 		print "\tError: MODE must be one of: 'extract' 'train' 'test'"
 		sys.exit(-1)
 
@@ -45,6 +46,13 @@ def main():
 	data["train"] = readMatrixData("train")
 	data["test"] = readMatrixData("test")
 
+	if args.mode == "trainbbox":
+		# Models is a dict of size 3 (one for each class)
+		# each class/entry contains a list of 4 classifiers, one for each bbox parameter
+		models = dict()
+		for class_id in [1,2,3]:
+			models[class_id] = trainBboxRegressionForClass(data, class_id)
+
 	# Equivalent to the starter code: train_rcnn.m
 	if args.mode == "train":
 		# For each object class
@@ -54,10 +62,10 @@ def main():
 		if not os.path.isdir(MODELS_DIR):
 			os.makedirs(MODELS_DIR)
 
-		for c in xrange(1, NUM_CLASSES+1):
+		for class_id in [1,2,3]:
 			# Train a SVM for this class
-			model = trainClassifierForClass(data, c)
-			model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(c, FEATURE_LAYER))
+			model = trainClassifierForClass(data, class_id)
+			model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(class_id, FEATURE_LAYER))
 			with open(model_file_name, 'w') as fp:
 				cp.dump(model, fp)
 			#thread = threading.Thread(target=trainClassifierForClass, args=[data, c])
@@ -96,7 +104,9 @@ def main():
 			print "Processing %i images on GPU ID %i. Total GPUs: %i" % (len(payload), gpu_id, num_gpus)
 			for i, image_name in enumerate(payload):
 				start = time.time()
-				img = cv2.imread(os.path.join(IMG_DIR, image_name))
+				# Do NOT use opencv to read the file. Caffe needs images in BGR format
+				img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
+
 				# Also need to extract features from GT bboxes
 				# Sometimes an image has zero GT bboxes
 				if data[EXTRACT_MODE]["gt"][image_name][1].shape[0] > 0:
@@ -142,7 +152,7 @@ def initCaffeNetwork(gpu_id):
 	if GPU_MODE == True:
 		caffe.set_mode_gpu()
 		local_id = gpu_id % 4
-		caffe.set_device(local_id)
+		caffe.set_device(0)
 	else:
 		caffe.set_mode_cpu()
 

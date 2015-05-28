@@ -27,7 +27,7 @@ GPU_MODE = True # Set to True if using GPU
 # CNN Batch size. Depends on the hardware memory
 # NOTE: This must match exactly value of line 3 in the deploy.prototxt file
 global CNN_BATCH_SIZE
-CNN_BATCH_SIZE = 2000 # CNN batch size
+CNN_BATCH_SIZE = 250 # CNN batch size
 global CNN_INPUT_SIZE
 CNN_INPUT_SIZE = 227 # Input size of the CNN input image (after cropping)
 

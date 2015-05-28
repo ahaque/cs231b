@@ -94,7 +94,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
 
                 # Classify negative features using small_svm
                 # Find features classified as positive
-                X = normalizeFeatures(neg_features) # Normalize
+                X = util.normalizeFeatures(neg_features) # Normalize
                 X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
 
                 # X = curr image negatives
@@ -121,7 +121,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
                 # easy_negs = neg_features[easy_idx, :]
                 # # X_neg_small = ALL previous negative examples 
                 # # hard_negs = current image hard negative examples
-                # X = normalizeFeatures(easy_negs) # Normalize
+                # X = util.normalizeFeatures(easy_negs) # Normalize
                 # X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
                 # dists = small_svm.decision_function(X)
                 # sorted_idx = np.argsort(dists)
@@ -195,14 +195,14 @@ def trainBackgroundClassifier(data, debug=False):
         # If no GT boxes in image, add all regions as positive
         if num_gt_bboxes == 0:
             pos_features = features
-            X_train.append(normalizeFeatures(pos_features))
+            X_train.append(util.normalizeFeatures(pos_features))
             y_train.append(np.ones((pos_features.shape[0], 1)))
         else:
             gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
 
             # ADD NEGATIVE EXAMPLES
             neg_features = features[0:num_gt_bboxes, :]
-            X_train.append(normalizeFeatures(neg_features))
+            X_train.append(util.normalizeFeatures(neg_features))
             y_train.append(np.zeros((neg_features.shape[0], 1)))
 
             
@@ -221,7 +221,7 @@ def trainBackgroundClassifier(data, debug=False):
             negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
             neg_features = features[negative_idx, :]
 
-            X_train.append(normalizeFeatures(neg_features))
+            X_train.append(util.normalizeFeatures(neg_features))
             y_train.append(np.zeros((neg_features.shape[0], 1)))
 
         if i % 50 == 0 and i > 0:
@@ -244,7 +244,7 @@ def trainSVM(pos_features, neg_features, debug=False):
     
     # Build inputs
     X = np.vstack((pos_features,neg_features))
-    X = normalizeFeatures(X) # Normalize
+    X = util.normalizeFeatures(X) # Normalize
     X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
 
     y = [np.ones((pos_features.shape[0], 1)), np.zeros((neg_features.shape[0], 1))]
@@ -267,24 +267,8 @@ def trainSVM(pos_features, neg_features, debug=False):
 
     return model
 
+def main():
+    print "Error: Do not run train_rcnn.py directly. You should use main.py."
 
-################################################################
-# normalizeFeatures(features)
-#   Takes a matrix of features (each row is a feature) and
-#   normalizes each row to mean=0, variance=1
-#
-# Input: features (n x NUM_CNN_FEATURES matrix)
-# Output: result (n x NUM_CNN_FEATURES matrix)
-#
-def normalizeFeatures(features):
-    # If no features, return
-    if features.shape[0] == 0:
-        return features
-
-    mu = np.mean(features, axis=1)
-    std = np.std(features, axis=1)
-
-    result = features - np.tile(mu, (features.shape[1], 1)).T
-    result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
-
-    return result
+if __name__ == '__main__':
+    main()
