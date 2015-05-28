@@ -1,181 +1,164 @@
 import os
+import sys
 import time
 import util
 import numpy as np
+import random
 
 from sklearn import svm
 from settings import *
 
-def stack(data):
-	result = None
-	if len(data) == 0:
-		result = None
-	elif len(data) == 1:
-		result = data[0]
-	else:
-		result = np.vstack(tuple(data))
-
-	return result
-
 def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=False):
     X_pos = []
     X_neg = []
-    X_neg_small_trained = [] # WHAT THE SMALL SVM IS TRAINED ON
-    X_neg_curr_image = [] # NEGS FOR CURR IMAGE ONLY
-    X_neg_hard_since_train = [] # ALL HARD NEGS SINCE LAST TRAIN
-    X_neg_initial = [] # ALL NEGS FOR SVM TRAIN
-    curr_num_hard_negs = 0
-    
+
     num_images = len(data["train"]["gt"].keys())
-    small_svm = None
     start_time = time.time()
 
-    for epoch in xrange(epochs):
-        for i, image_name in enumerate(data["train"]["gt"].keys()):
-            if not os.path.isfile(os.path.join(FEATURES_DIR, image_name + '.npy')):
-                continue
+    for i, image_name in enumerate(data["train"]["gt"].keys()):
+        # Load features from file for current image
+        features_file_name = os.path.join(FEATURES_DIR, image_name + '.npy')
+        if not os.path.isfile(features_file_name):
+            print 'ERROR: Missing features file \'%s\''%(features_file_name) 
+            sys.exit(1)
+        features = np.load(features_file_name)
 
-            X_neg_curr_image = []
-            # Load features from file for current image
-            features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+        num_gt_bboxes = data["train"]["gt"][image_name][0].shape[1]
 
-            num_gt_bboxes = data["train"]["gt"][image_name][0].shape[1]
+        # Case 1: No GT boxes in image. Cannot compute overlap with regions.
+        # Case 2: No GT boxes in image for current class
+        # Case 3: GT boxes in image for current class
+        if num_gt_bboxes == 0: # Case 1
+            X_neg.append(features)
+        else:
+            labels = np.array(data["train"]["gt"][image_name][0][0])
+            gt_bboxes = np.array(data["train"]["gt"][image_name][1])
+            IDX = np.where(labels == class_id)[0]
 
-            # Case 1: No GT boxes in image. Cannot compute overlap with regions.
-            # Case 2: No GT boxes in image for current class
-            # Case 3: GT boxes in image for current class
-
-            if num_gt_bboxes == 0: # Case 1
-                # All regions are negative examples
-                X_neg_curr_image.append(features)
+            if len(IDX) == 0: # Case 2
+                X_neg.append(features)
             else:
-                labels = np.array(data["train"]["gt"][image_name][0][0])
-                gt_bboxes = np.array(data["train"]["gt"][image_name][1]).astype(np.int32) # Otherwise uint8 by default
-                IDX = np.where(labels == class_id)[0]
+                regions = data["train"]["ssearch"][image_name]
 
-                if len(IDX) == 0: # Case 2
-                    X_neg_curr_image.append(features)
-                else: # Case 3
-                    # Compute Overlaps
-                    regions = data["train"]["ssearch"][image_name].astype(np.int32) 
-                    overlaps = np.zeros((len(IDX), regions.shape[0]))
+                overlaps = np.zeros((regions.shape[0], len(IDX)))
+                for j, gt_bbox in enumerate(gt_bboxes[IDX]):
+                    overlaps[:,j] = util.computeOverlap(gt_bbox, regions)
+                highest_overlaps = overlaps.max(axis=1)
 
-                    for j, gt_bbox in enumerate(gt_bboxes[IDX]):
-                        overlaps[j,:] = util.computeOverlap(gt_bbox, regions)
-                    highest_overlaps = overlaps.max(0)
+                # TODO: PLOTTT THIISSS
+                # import matplotlib.pyplot as plt
+                # plt.hist(highest_overlaps[highest_overlaps>0.001], bins=200)
+                # plt.show()
+                 
+                assert(max(IDX) < num_gt_bboxes)
 
-                    # TODO: PLOTTT THIISSS
-                    # import matplotlib.pyplot as plt
-                    # plt.hist(highest_overlaps[highest_overlaps>0.001], bins=200)
-                    # plt.show()
+                # Select Positive/Negatives Regions
+                positive_idx = np.where(highest_overlaps > POSITIVE_THRESHOLD)[0]
+                positive_idx += num_gt_bboxes
+                X_pos.append(features[IDX, :]) # GT box
+                X_pos.append(features[positive_idx, :]) # GT box overlapping regions
 
-                    # Select Positive/Negatives Regions
-                    positive_idx = np.where(highest_overlaps > POSITIVE_THRESHOLD)[0]
-                    X_pos.append(features[IDX, :]) # GT box
-                    X_pos.append(features[positive_idx, :]) # GT box overlapping regions
+                # Only add negative examples where bbox is far from all GT boxes
+                negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
+                negative_idx += num_gt_bboxes
+                X_neg.append(features[negative_idx, :])
 
-                    # Only add negative examples where bbox is far from all GT boxes
-                    negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
-                    X_neg_curr_image.append(features[negative_idx, :])
+        if (i+1) % 50 == 0:
+            print "Finished %i / %i.\tElapsed: %f" % (i+1, num_images, time.time()-start_time)
 
-                    # if len(X_neg_small) != 0:
-                    #   print 'Num Regions:%d, Negatives:%d'%(regions.shape[0], stack(X_neg_small).shape[0])
-                    # else:
-                    #   print 'Num Regions:%d, Negatives:%d'%(regions.shape[0], 0)
 
-            if small_svm is None:
-                X_neg_initial += X_neg_curr_image
-            
-            hard_negs = np.zeros((0,1))
-            if small_svm is not None:
-                pos_features = stack(X_pos)
-                neg_features = stack(X_neg_curr_image)
-                num_neg_features = neg_features.shape[0]
+    model = None
+    print 'Stacking...'
+    start_time = time.time()
+    X_pos = util.stack(X_pos)
+    X_neg = util.stack(X_neg)
+    end_time = time.time()
+    if debug: print 'Stacking took: %f'%(end_time - start_time)
+
+    if debug: print 'Normalizing and adding bias to positive...'
+    start_time = time.time()
+    X_pos = util.normalizeFeatures(X_pos)
+    X_pos = np.concatenate((np.ones((X_pos.shape[0], 1)), X_pos), axis=1)    
+    end_time = time.time()
+    if debug: print 'Normalizing and adding bias to positive took: %f'%(end_time - start_time)
+
+    num_positives = X_pos.shape[0]
+    num_negatives = X_neg.shape[0]
+    hard_negs = []
+    curr_num_hard_negs = 0
+    for epoch in xrange(epochs):
+        X_neg_idx = np.random.permutation(num_negatives)
+
+        start_idx = 0
+        increment = num_positives*3
+        while start_idx < num_negatives:
+            end_idx = min(start_idx + increment, num_negatives)
+            if model is None:
+                if debug: print 'Picking Features'
+                start_time = time.time()
+                X_neg_subset = X_neg[X_neg_idx[start_idx:end_idx], :]
+                end_time = time.time()
+                if debug: print 'Picking took: %f'%(end_time - start_time)
+
+                if debug: print 'Normalizing and adding bias to negative subset...'
+                start_time = time.time()
+                X_neg_subset = util.normalizeFeatures(X_neg_subset)
+                X_neg_subset = np.concatenate((np.ones((X_neg_subset.shape[0], 1)), X_neg_subset), axis=1)    
+                end_time = time.time()
+                if debug: print 'Normalizing and adding bias to negative subset took: %f'%(end_time - start_time)
+
+                print 'Training SVM...'
+                start_time = time.time()
+                model = trainSVM(X_pos, X_neg_subset)
+                end_time = time.time()
+                print 'Training took: %f'%(end_time - start_time)
+
+                hard_negs.append(X_neg_subset)
+            else:
+                if debug: print 'Picking Features'
+                start_time = time.time()
+                X_neg_subset = X_neg[X_neg_idx[start_idx:end_idx], :]
+                end_time = time.time()
+                if debug: print 'Picking took: %f'%(end_time - start_time)
+
+                if debug: print 'Normalizing and adding bias to negative subset...'
+                start_time = time.time()
+                X_neg_subset = util.normalizeFeatures(X_neg_subset)
+                X_neg_subset = np.concatenate((np.ones((X_neg_subset.shape[0], 1)), X_neg_subset), axis=1)    
+                end_time = time.time()
+                if debug: print 'Normalizing and adding bias to negative subset took: %f'%(end_time - start_time)
 
                 # Classify negative features using small_svm
-                # Find features classified as positive
-                X = util.normalizeFeatures(neg_features) # Normalize
-                X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
-
-                # X = curr image negatives
-                y_hat = small_svm.predict(X)
-
+                y_hat = model.predict(X_neg_subset)
                 hard_idx = np.where(y_hat == 1)[0]
-                hard_negs = neg_features[hard_idx, :]
+                hard_negs_subset = X_neg_subset[hard_idx, :]
+                hard_negs.append(hard_negs_subset)
                 
-                curr_num_hard_negs += hard_negs.shape[0]
-
-                if hard_negs.shape[0] == 0:
-                    if i % 50 == 0 and i > 0:
-                        print "Finished %i / %i.\tElapsed: %f (Hard: %d)" % (i, num_images, time.time()-start_time, curr_num_hard_negs)
-                    # X_neg_small = X_neg_small[0:-len(X_neg_curr)]
-                    # print "Finished %i / %i.\tElapsed: %f (Hard: %d)" % (i, num_images, time.time()-start_time, curr_num_hard_negs)
-                    continue
-
-                X_neg_hard_since_train.append(hard_negs)
-
-                # easy_negs = stack(X_neg_small_trained)
-                # X_neg_small = [hard_negs, easy_negs]
-
-                # easy_idx = np.where(y_hat == 0)[0]
-                # easy_negs = neg_features[easy_idx, :]
-                # # X_neg_small = ALL previous negative examples 
-                # # hard_negs = current image hard negative examples
-                # X = util.normalizeFeatures(easy_negs) # Normalize
-                # X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
-                # dists = small_svm.decision_function(X)
-                # sorted_idx = np.argsort(dists)
-
-                # num_easy_negs = max(0, memory_size - hard_negs.shape[0])
-                # if num_easy_negs > 0:
-                #   easy_negs = easy_negs[sorted_idx[0:num_easy_negs], :]
-                #   X_neg_small = [hard_negs, easy_negs]
-                # else:
-                #   X_neg_small = [hard_negs]
+                curr_num_hard_negs += hard_negs_subset.shape[0]
 
                 # Check if we need to retrain SVM
-                if curr_num_hard_negs > 0.1*memory_size:
-                    neg_features = stack(X_neg_small_trained + X_neg_hard_since_train)
-                    print 'Retraining small SVM (Pos: %d, Neg: %d)...'%(pos_features.shape[0], neg_features.shape[0])
+                if curr_num_hard_negs > 1000:
+                    hard_negs = util.stack(hard_negs)
 
-                    small_svm = trainSVM(pos_features[0:4,:], neg_features, debug=False)
+                    print 'Retraining SVM (Num hard: %d)...'%(curr_num_hard_negs)
+                    start_time = time.time()
+                    model = trainSVM(X_pos, hard_negs)
+                    end_time = time.time()
+                    print 'Retraining took: %f'%(end_time - start_time)
 
-                    # y_hat = small_svm.predict(X)
-                    # hard_idx = np.where(y_hat == 1)[0]
-                    # print 'Num hard negs after retraining: %d'%(len(hard_idx))
-
-                    X_neg.append(neg_features[0:curr_num_hard_negs, :])
-
-                    X_neg_small_trained = X_neg_small_trained + X_neg_hard_since_train
+                    hard_negs = [hard_negs]
                     curr_num_hard_negs = 0
-                    X_neg_hard_since_train = []
+                else:
+                    print 'No retrain required (Num hard: %d)'%(curr_num_hard_negs)
 
-            elif len(X_pos) > 0:
-                # NO SVM HAS BEEN TRAINED YET
-                # WE HAVE INITIAL NEGS in X_neg_initial
-                pos_features = stack(X_pos)
-                neg_features = stack(X_neg_initial)
-                num_neg_features = neg_features.shape[0]
-                # Train the SVM
-                print 'Training small SVM (Pos: %d, Neg: %d)...'%(pos_features.shape[0], neg_features.shape[0])
-                small_svm = trainSVM(pos_features, neg_features)
+            start_idx += increment
 
-                X_pos = [pos_features]
-                X_neg = [neg_features]
-                X_neg_small_trained = [neg_features]
-            
-            if i % 50 == 0 and i > 0:
-                print "Finished %i / %i.\tElapsed: %f (Hard: %d)" % (i, num_images, time.time()-start_time, curr_num_hard_negs)
-                # print "Finished %i / %i.\tElapsed: %f" % (i, num_images, time.time()-start_time)
+    print 'Retraining SVM...'
+    hard_negs = util.stack(hard_negs)
+    model = trainSVM(X_pos, hard_negs, debug=True)
+    sys.exit(0)
 
-    if curr_num_hard_negs > 0:
-        neg_features = stack(X_neg_small_trained + X_neg_hard_since_train)
-        X_neg.append(neg_features[0:curr_num_hard_negs, :])
-
-    pos_features = stack(X_pos)
-    neg_features = stack(X_neg)
-
-    return trainSVM(pos_features, neg_features, debug=True)
+    return model
 
 
 def trainBackgroundClassifier(data, debug=False):
@@ -241,18 +224,26 @@ def trainSVM(pos_features, neg_features, debug=False):
         print "Num Positive:", pos_features.shape
         print "Num Negatives:", neg_features.shape
         print "Num Total:", pos_features.shape[0] + neg_features.shape[0]
+
+    IDX = np.random.permutation(neg_features.shape[0])
+    print IDX.shape
+    IDX = IDX[0:min(pos_features.shape[0], neg_features.shape[0])]
+    print IDX.shape
+    neg_features = neg_features[IDX,:]
+    print neg_features.shape
     
     # Build inputs
     X = np.vstack((pos_features,neg_features))
-    X = util.normalizeFeatures(X) # Normalize
-    X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
+    # X = util.normalizeFeatures(X) # Normalize
+    # X = np.concatenate((np.ones((X.shape[0], 1)), X), axis=1) # Add the bias term
 
     y = [np.ones((pos_features.shape[0], 1)), np.zeros((neg_features.shape[0], 1))]
     y = np.squeeze(np.vstack(tuple(y)))
 
     # Train the SVM
-    model = svm.LinearSVC(penalty="l1", dual=False)
+    model = svm.LinearSVC(penalty="l1", dual=False, class_weight={0:1, 1:5})
     if debug: print "Training SVM..."
+    print X.shape, y.shape
     model.fit(X, y)
 
     # Compute training accuracy
@@ -261,6 +252,8 @@ def trainSVM(pos_features, neg_features, debug=False):
     num_correct = np.sum(y == y_hat)
 
     if debug:
+        print "Positive Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==1)) / np.sum(y==1)
+        print "Negative Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==0)) / np.sum(y==0)
         print "Training Accuracy:", 1.0 * num_correct / y.shape[0]
         print 'Total Time: %d seconds'%(time.time() - start_time)
         print "-------------------------------------"
