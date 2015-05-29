@@ -9,7 +9,7 @@ IMG_DIR = "../images" # IMG_DIR contains all images
 global FEATURES_DIR
 FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
 global MODELS_DIR
-MODELS_DIR = '../models/'
+MODELS_DIR = '../models/iterative/'
 
 global MODEL_DEPLOY
 MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file

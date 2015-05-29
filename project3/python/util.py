@@ -64,19 +64,28 @@ def randomColor():
 #	displayImageWithBboxes(image_name, data["train"]["gt"][image_name][1])
 #	displayImageWithBboxes("img123.jpg", [[0 0 125 200]])
 #
-def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None): 
+def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None): 
+	print bboxes
 	bboxes = bboxes.astype(np.int32)
 	img = cv2.imread(os.path.join(IMG_DIR, image_name))
 
 	cv2.imshow("Original", img)
 	for bbox in bboxes:
-		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), randomColor(), thickness=1)
+		if color is None:
+			box_color = randomColor()
+		else:
+			box_color = color
+		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), box_color, thickness=1)
 
 	title = "Image (GT bboxes : %d)"%(0)
 	if gt_bboxes is not None:
 		title = "Image (GT bboxes : %d)"%(len(gt_bboxes))
 		for gt_bbox in gt_bboxes:
-			cv2.rectangle(img, (gt_bbox[0], gt_bbox[1]), (gt_bbox[2], gt_bbox[3]), randomColor(), thickness=2)
+			if color is None:
+				box_color = randomColor()
+			else:
+				box_color = color
+			cv2.rectangle(img, (gt_bbox[0], gt_bbox[1]), (gt_bbox[2], gt_bbox[3]), (0,0,0), thickness=4)
 
 	cv2.imshow(title, img)
 	cv2.moveWindow(title, 600, 0)

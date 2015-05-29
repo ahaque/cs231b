@@ -91,16 +91,16 @@ def trainBboxRegressionForClass(data, class_id):
 
     return models
 
-def predictBoundingBox(models, features, proposal_bboxes):
+def predictBoundingBox(models, features, bboxes):
     targets = np.zeros((features.shape[0], 4))
     for i, model in enumerate(models):
         targets[:,i] = model.predict(features)
 
     # Convert from targets to bboxes
-    Px = 0.5 * (proposal_bboxes[:,0]+proposal_bboxes[:,2])
-    Py = 0.5 * (proposal_bboxes[:,1]+proposal_bboxes[:,3])
-    Pw = proposal_bboxes[:,2] - proposal_bboxes[:,0] + 1
-    Ph = proposal_bboxes[:,3] - proposal_bboxes[:,1] + 1
+    Px = 0.5 * (bboxes[:,0]+bboxes[:,2])
+    Py = 0.5 * (bboxes[:,1]+bboxes[:,3])
+    Pw = bboxes[:,2] - bboxes[:,0] + 1
+    Ph = bboxes[:,3] - bboxes[:,1] + 1
 
     # Solve for G using Equations 1,2,3,4 from paper
     Gx = np.multiply(targets[:,0], Px) + Px
