@@ -1,5 +1,6 @@
 .DS_Store
 _output/
 code/_output/
+code/mex/*.mexmaci64
 *.m~
 *.caffemodel
