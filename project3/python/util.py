@@ -93,7 +93,18 @@ def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None):
 		sys.exit(0)
 	cv2.destroyWindow(title)
 
+def normalizeFeaturesIndependent(features):
+    # If no features, return
+    if features.shape[0] == 0:
+        return features
 
+    mu = np.mean(features, axis=1)
+    std = np.std(features, axis=1)
+
+    result = features - np.tile(mu, (features.shape[1], 1)).T
+    result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
+
+    return result
 
 ################################################################
 # normalizeFeatures(features)
@@ -108,11 +119,11 @@ def normalizeFeatures(features):
     if features.shape[0] == 0:
         return features
 
-    mu = np.mean(features, axis=1)
-    std = np.std(features, axis=1)
+    mu = np.mean(features, axis=0)
+    std = np.std(features, axis=0)
 
-    result = features - np.tile(mu, (features.shape[1], 1)).T
-    result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
+    result = features - np.tile(mu, (features.shape[0], 1))
+    result = np.divide(result, np.tile(std, (features.shape[0], 1)))
 
     return result
 
