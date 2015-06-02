@@ -8,12 +8,6 @@ import random
 from sklearn import svm
 from settings import *
 
-def normalizeAndAddBias(X):
-    X_t = util.normalizeFeatures(X) # Normalize
-    # X_t = np.concatenate((5*np.ones((X_t.shape[0], 1)), X_t), axis=1) # Add the bias term
-
-    return X_t
-
 def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=False):
     X_pos = []
     X_neg = []
@@ -70,14 +64,17 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
                 assert(max(IDX) < num_gt_bboxes)
 
                 # Select Positive/Negatives Regions
-                # positive_idx = np.where(highest_overlaps > POSITIVE_THRESHOLD)[0]
-                # positive_idx += num_gt_bboxes
+                positive_idx = np.where(highest_overlaps > POSITIVE_THRESHOLD)[0]
+                positive_idx += num_gt_bboxes
                 # X_pos.append(features[IDX, :]) # GT box
+                # X_pos.append(features[positive_idx, :]) # GT box overlapping regions
                 if image_name in val_set_images:
                     X_pos_val.append(features[IDX, :])
+                    X_pos_val.append(features[positive_idx, :])
                 else:
                     X_pos.append(features[IDX, :])
-                # X_pos.append(features[positive_idx, :]) # GT box overlapping regions
+                    X_pos.append(features[positive_idx, :])
+                
 
                 # Only add negative examples where bbox is far from all GT boxes
                 negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
@@ -91,9 +88,10 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
             print "Finished %i / %i.\tElapsed: %f" % (i+1, num_images, time.time()-start_time)
 
     model = None
+    scaler = None
     print 'Stacking...'
     start_time = time.time()
-    X_pos = util.stack(X_pos + X_pos + X_pos + X_pos + X_pos)
+    X_pos = util.stack(X_pos)
     X_neg = util.stack(X_neg)
     X_pos_val = util.stack(X_pos_val)
     X_neg_val = util.stack(X_neg_val)
@@ -104,7 +102,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
 
     if debug: print 'Normalizing and adding bias to positive...'
     start_time = time.time()
-    # X_pos = normalizeAndAddBias(X_pos)
+    # X_pos = util.normalizeAndAddBias(X_pos)
     end_time = time.time()
     if debug: print 'Normalizing and adding bias to positive took: %f'%(end_time - start_time)
 
@@ -116,7 +114,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
         X_neg_idx = np.random.permutation(num_negatives)
 
         start_idx = 0
-        increment = num_positives
+        increment = 2*num_positives
         while start_idx < num_negatives:
             print "[INFO] Negative traversal process: %d / %d"%(start_idx, num_negatives)
             end_idx = min(start_idx + increment, num_negatives)
@@ -129,17 +127,20 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
 
                 if debug: print 'Normalizing and adding bias to negative subset...'
                 start_time = time.time()
-                # X_neg_subset = normalizeAndAddBias(X_neg_subset)   
+                # X_neg_subset = util.normalizeAndAddBias(X_neg_subset)   
                 end_time = time.time()
                 if debug: print 'Normalizing and adding bias to negative subset took: %f'%(end_time - start_time)
 
                 print 'Training SVM...'
                 start_time = time.time()
-                model = trainSVM(X_pos, X_neg_subset)
+                model, scaler = trainSVM(X_pos, X_neg_subset)
                 end_time = time.time()
                 print 'Training took: %f'%(end_time - start_time)
 
+                # getValidationAccuracy(model, X_pos_val, X_neg_val)
+
                 hard_negs.append(X_neg_subset)
+                num_iter_since_retrain = 0
             else:
                 if debug: print 'Picking Features'
                 start_time = time.time()
@@ -149,7 +150,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
 
                 if debug: print 'Normalizing and adding bias to negative subset...'
                 start_time = time.time()
-                X_neg_subset_1 = normalizeAndAddBias(X_neg_subset)
+                X_neg_subset_1, _ = util.normalizeAndAddBias(X_neg_subset, scaler)
                 end_time = time.time()
                 if debug: print 'Normalizing and adding bias to negative subset took: %f'%(end_time - start_time)
 
@@ -160,28 +161,66 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
                 hard_negs.append(hard_negs_subset)
                 
                 curr_num_hard_negs += hard_negs_subset.shape[0]
+                print 'Num Hard: %d / %d'%(hard_negs_subset.shape[0], X_neg_subset.shape[0])
 
                 # Check if we need to retrain SVM
                 if curr_num_hard_negs > 10000:
                     hard_negs = util.stack(hard_negs)
 
-                    print 'Retraining SVM (Num hard: %d)...'%(curr_num_hard_negs)
+                    # Filter negs
+                    X, _ = util.normalizeAndAddBias(hard_negs, scaler)
+                    conf = model.decision_function(X)
+                    # y = model.predict(X)
+                    # print conf[IDX[10000:10100]], y[IDX[10000:10100]]
+
+                    # Discard 1/4th easy examples
+                    # IDX = np.argsort(conf)
+                    # IDX = IDX[IDX.shape[0]/4:]
+                    
+                    # Keep only max_num_neg negatives
+                    max_num_neg = X_pos.shape[0] * 3
+                    IDX = np.argsort(-1*conf)
+                    IDX = IDX[0:min(max_num_neg, IDX.shape[0])]
+                    
+                    # Keep only negatives with decision score > -1.0
+                    # IDX = np.where(conf > -1.0)[0]
+                    print 'Old num hard negs: %d'%(hard_negs.shape[0])
+                    hard_negs = hard_negs[IDX,:]
+                    print 'New num hard negs: %d'%(hard_negs.shape[0])
+
+                    print 'Retraining SVM (Skipped %d retrains) (Num hard: %d)...'%(num_iter_since_retrain, curr_num_hard_negs)
                     start_time = time.time()
-                    model = trainSVM(X_pos, hard_negs, model=model)
+                    model, scaler = trainSVM(X_pos, hard_negs)
                     end_time = time.time()
                     print 'Retraining took: %f'%(end_time - start_time)
+                    # getValidationAccuracy(model, X_pos_val, X_neg_val)
 
                     hard_negs = [hard_negs]
                     curr_num_hard_negs = 0
+                    num_iter_since_retrain = 0
                 else:
-                    print 'No retrain required (Num hard: %d)'%(curr_num_hard_negs)
+                    num_iter_since_retrain += 1
+                    # print 'No retrain required (Num hard: %d)'%(curr_num_hard_negs)
 
             start_idx += increment
 
     print 'Retraining SVM (Final)...'
     hard_negs = util.stack(hard_negs)
-    model = trainSVM(X_pos, hard_negs, model=model, debug=True)
+    X, _ = util.normalizeAndAddBias(hard_negs, scaler)
+    conf = model.decision_function(X)
+    
+    # Keep only max_num_neg negatives
+    max_num_neg = X_pos.shape[0] * 3
+    IDX = np.argsort(-1*conf)
+    IDX = IDX[0:min(max_num_neg, IDX.shape[0])]
+    hard_negs = hard_negs[IDX,:]
+    model, scaler = trainSVM(X_pos, hard_negs, model=model, debug=True)
 
+    getValidationAccuracy(model, scaler, X_pos_val, X_neg_val)
+    
+    return (model, scaler)
+
+def getValidationAccuracy(model, scaler, X_pos_val, X_neg_val):
     # Check accuracy on validation set
     print '\n\n'
     print 'Validation set accuracy'
@@ -190,9 +229,11 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
         print >> fp, '\n'
         print >> fp, 'Validation set accuracy'
         print >> fp, '-----------------------'
-    X_pos_val = normalizeAndAddBias(X_pos_val)
-    X_neg_val = normalizeAndAddBias(X_neg_val)
+    # X_pos_val = util.normalizeAndAddBias(X_pos_val)
+    # X_neg_val = util.normalizeAndAddBias(X_neg_val)
     X = util.stack([X_pos_val, X_neg_val])
+
+    X = scaler.transform(X)
 
     y = [np.ones((X_pos_val.shape[0], 1)), np.zeros((X_neg_val.shape[0], 1))]
     y = np.squeeze(np.vstack(tuple(y)))
@@ -210,7 +251,6 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
         print >> fp, "Negative Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==0)) / np.sum(y==0)
         print >> fp, "Training Accuracy:", 1.0 * np.sum(y == y_hat) / y.shape[0]
         print >> fp, "-------------------------------------"
-    return model
     
 def trainSVM(pos_features, neg_features, model=None, debug=False):
     start_time = time.time()
@@ -224,17 +264,6 @@ def trainSVM(pos_features, neg_features, model=None, debug=False):
             print >> fp, "Num Negatives:", neg_features.shape
             print >> fp, "Num Total:", pos_features.shape[0] + neg_features.shape[0]
 
-    # Filter negs
-    if model is not None:
-        max_num_neg = pos_features.shape[0] * 10
-        X = normalizeAndAddBias(neg_features)
-        conf = model.decision_function(X)
-        y = model.predict(X)
-        IDX = np.argsort(-1*conf)
-        # print conf[IDX[10000:10100]], y[IDX[10000:10100]]
-        IDX = IDX[0:min(max_num_neg, IDX.shape[0])]
-        neg_features = neg_features[IDX,:]
-
     print 'Training on %d pos and %d neg'%(pos_features.shape[0], neg_features.shape[0])
 
     # IDX = np.random.permutation(neg_features.shape[0])
@@ -245,13 +274,13 @@ def trainSVM(pos_features, neg_features, model=None, debug=False):
     
     # Build inputs
     X = np.vstack((pos_features,neg_features))
-    X = normalizeAndAddBias(X)
+    X, scaler = util.normalizeAndAddBias(X)
 
     y = [np.ones((pos_features.shape[0], 1)), np.zeros((neg_features.shape[0], 1))]
     y = np.squeeze(np.vstack(tuple(y)))
 
     # Train the SVM
-    model = svm.LinearSVC(penalty="l2", dual=False, class_weight='auto', fit_intercept=True, intercept_scaling=1, C=0.0001)
+    model = svm.LinearSVC(penalty="l2", dual=False, fit_intercept=True, intercept_scaling=1, C=0.0001)
     if debug: print "Training SVM..."
     # print X.shape, y.shape
     model.fit(X, y)
@@ -273,7 +302,7 @@ def trainSVM(pos_features, neg_features, model=None, debug=False):
             print >> fp, "Training Accuracy:", 1.0 * num_correct / y.shape[0]
             print >> fp, 'Total Time: %d seconds'%(time.time() - start_time)
 
-    return model
+    return model, scaler
 
 def main():
     print "Error: Do not run train_rcnn.py directly. You should use main.py."

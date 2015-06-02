@@ -4,6 +4,7 @@ import sys
 
 import numpy as np
 
+from sklearn import preprocessing
 from settings import *
 
 COLORS = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(255,0,255),(0,255,255)]
@@ -126,6 +127,18 @@ def normalizeFeatures(features):
     result = np.divide(result, np.tile(std, (features.shape[0], 1)))
 
     return result
+
+def normalizeAndAddBias(X, scaler = None):
+    # X_t = normalizeFeatures(X) # Normalize
+    # scaler = None
+    # X_t = np.concatenate((5*np.ones((X_t.shape[0], 1)), X_t), axis=1) # Add the bias term
+    # 
+    if scaler is None:
+        scaler = preprocessing.StandardScaler().fit(X)
+    X_t = scaler.transform(X)
+
+    # print 'dfsakjfdhaskjsdfah:', X.shape, X_t.shape
+    return X_t, scaler
 
 def stack(data):
 	result = None
