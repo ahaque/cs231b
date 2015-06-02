@@ -1,5 +1,34 @@
 import numpy as np
 import util
+try:
+    import matlab.engine
+    matlab_ready = True
+except ImportError:
+    print 'Warning: Matlab python engine not found. Will evaluate using python implementation.'
+    matlab_ready = False
+
+def det_eval_matlab(gt_bboxes, pred_bboxes):
+    if not matlab_ready:
+        print 'Matlab not found. Falling back to python implementation'
+        return det_eval(gt_bboxes, pred_bboxes)
+
+    eng = matlab.engine.start_matlab()
+    eng.cd(r'../starter_code/', nargout=0)
+    mat_gt_bboxes = []
+    for x in gt_bboxes:
+        # print x.shape
+        mat_gt_bboxes.append(matlab.double(x.tolist()))
+
+    mat_pred_bboxes = []
+    for x in pred_bboxes:
+        # print x.shape
+        mat_pred_bboxes.append(matlab.double(x.tolist()))
+
+    [ap, prec, rec] = eng.det_eval(mat_gt_bboxes, mat_pred_bboxes, nargout=3)
+    prec = np.squeeze(np.array(prec))
+    rec = np.squeeze(np.array(rec))
+
+    return ap, prec, rec
 
 def det_eval(gt_bboxes, pred_bboxes):
     # det_eval
@@ -45,8 +74,11 @@ def det_eval(gt_bboxes, pred_bboxes):
             gt_bbox = gt_bboxes[image_ids[pred_ind]][g,:]
             overlaps[g] = util.computeOverlap(gt_bbox, np.array([bb]))
 
-        jmax = np.argmax(overlaps, axis=0)
-        ovmax = overlaps[jmax]
+        if overlaps.size != 0:
+            jmax = np.argmax(overlaps, axis=0)
+            ovmax = overlaps[jmax]
+        else:
+            ovmax = float('-inf')
 
         # assign detection as true positive/don't care/false positive
         im_detected = detected[image_ids[pred_ind]]
