@@ -113,7 +113,10 @@ def predictBoundingBox(models, features, bboxes):
     top_left = center - offset
     bottom_right = center + offset
 
-    return np.vstack((top_left.T, bottom_right.T)).T
+    new_bboxes = np.vstack((top_left.T, bottom_right.T)).T
+    scores = np.reshape(bboxes[:,4], (bboxes[:,4].shape[0],1))
+
+    return np.hstack((new_bboxes, scores))
 
 def main():
     print "Error: Do not run train_bbox.py directly. You should use main.py."

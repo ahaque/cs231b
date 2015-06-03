@@ -33,12 +33,12 @@ def det_eval_matlab(gt_bboxes, pred_bboxes):
 def det_eval(gt_bboxes, pred_bboxes):
     # det_eval
     # Arguments:
-    # gt_bboxes: Cell array of ground truth bounding boxes for a single class.
+    # pred_bboxes: Cell array of predicted bounding boxes for a single class.
     #   Each element corresponds to a single image and is a matrix of dimensions
     #   n x 5, where n is the number of bounding boxes. Each bounding box is
     #   represented as [x1 y1 x2 y2 score], where 'score' is the detection score.
-    # pred_bboxes: Cell array of predicted bounding boxes in the same format as
-    #   gt_bboxes, without the score component.
+    # gt_bboxes: Cell array of ground truth bounding boxes in the same format as
+    # pred_bboxes, without the score component.
     #
     # Returns:
     #   ap: average precision
