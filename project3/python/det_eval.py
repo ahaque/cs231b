@@ -111,6 +111,8 @@ def sort_bboxes(pred_bboxes):
     num_pred_boxes = np.sum([x.shape[0] for x in pred_bboxes])
 
     bboxes = util.stack([b for b in pred_bboxes if b.size > 0])
+    if bboxes is None:
+        return np.zeros((0, 5)), np.zeros((0, 1), dtype=int)
     image_ids = np.zeros((bboxes.shape[0], 1), dtype=int)
 
     # Concatenate them
