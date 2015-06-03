@@ -13,26 +13,27 @@ from train_bbox import *
 
 classes = ['CAR', 'CAT', 'PERSON']
 
-def nms(data):
+def nms(data, debug=False):
+    if debug: print data.shape[0],'->',
     candidates = np.copy(data)
     results = []
 
-    while True:
+    while candidates.size != 0:
         # print candidates.shape
         curr_candidate = candidates[0, :]
         rest_candidates = candidates[1:, :]
         overlaps = util.computeOverlap(curr_candidate, rest_candidates)
-        IDX = np.where(overlaps > 0.0001)[0]
-
+        
+        # IDX = np.where(overlaps > 0.3)[0]
         # mean_bbox = np.vstack((curr_candidate,rest_candidates[IDX]))
         # mean_bbox = np.mean(mean_bbox, axis=0).astype(np.uint32)
         # print mean_bbox
         results.append(curr_candidate)
 
-        if len(np.where(overlaps < 0.0001)[0]) == 0:
-            break
-        candidates = rest_candidates[np.where(overlaps < 0.5)[0]]
-
+        # if len(np.where(overlaps < 0.3)[0]) == 0:
+        #     break
+        candidates = rest_candidates[np.where(overlaps < 0.5)[0], :]
+    if debug: print np.array(results).shape[0]
     return np.array(results)
 
 def detect(image_name, model, data, debug=False):
@@ -43,6 +44,8 @@ def detect(image_name, model, data, debug=False):
         return
     
     features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
+
+    # Get rid of GT_Bbox features from feature matrix
     gt_bboxes = data["test"]["gt"][image_name]
     num_gt_bboxes = 0
     if len(gt_bboxes[0]) != 0:
@@ -51,6 +54,7 @@ def detect(image_name, model, data, debug=False):
 
     result_bboxes = []
     result_idx = [] # Length of 3, each element contains a list of indices where each index corresponds to a detected bbox
+    result_features = []
     result_conf = []
 
     X, _ = util.normalizeAndAddBias(features, scaler)
@@ -66,10 +70,11 @@ def detect(image_name, model, data, debug=False):
 
     # If our model detects no bboxes
     if len(IDX) == 0:
-        return None, None
+        return None, None, None
 
     # print "IDX", IDX.shape
     candidates = all_regions[IDX, :]
+    candidates_features = features[IDX, :]
     candidate_conf = confidence_scores[IDX]
 
     # print "Candidate conf", candidate_conf.shape
@@ -86,9 +91,11 @@ def detect(image_name, model, data, debug=False):
     candidates = np.hstack((candidates, candidate_conf))
 
     result_bboxes.append(candidates)
+    result_features.append(candidates_features)
     # result_conf.append(candidate_conf)
     # Result idx is the idx of detected bboxes in the original 2000 proposals
     result_idx.append(IDX[sorted_IDX])
+    
 
     #print candidates.shape[0]
     #candidates = nms(candidates)
@@ -100,9 +107,10 @@ def detect(image_name, model, data, debug=False):
     #print result_bboxes[np.argmax(result_conf)]
     #util.displayImageWithBboxes(image_name, np.array([result_bboxes[np.argmax(result_conf)]]))
     
-    result_bboxes = np.array([result_bboxes])
-    result_idx = np.array([result_idx])
-    return result_idx, result_bboxes
+    # result_bboxes = np.array([result_bboxes])
+    # result_bboxes = np.array([result_bboxes])
+    # result_idx = np.array([result_idx])
+    return IDX[sorted_IDX], candidates, candidates_features
 
 def test(data, debug=False):
     # Load the models
@@ -127,15 +135,15 @@ def test(data, debug=False):
         if i%25 == 0:
             print 'Processing Image #%d/%d'%(i+1, num_images)
         result = []
-        features_file_name = os.path.join(FEATURES_DIR, image_name + '.npy')
-        if not os.path.isfile(features_file_name):
-            print 'ERROR: Missing features file \'%s\''%(features_file_name) 
+        # features_file_name = os.path.join(FEATURES_DIR, image_name + '.npy')
+        # if not os.path.isfile(features_file_name):
+        #     print 'ERROR: Missing features file \'%s\''%(features_file_name) 
         
-        features = np.load(features_file_name)
+        # features = np.load(features_file_name)
 
         for c in [1,2,3]:
             # Run the detector
-            proposal_ids, proposal_bboxes = detect(image_name, svm_models[c], data)
+            proposal_ids, proposal_bboxes, proposal_features = detect(image_name, svm_models[c], data)
             # If no boxes were detected
             if proposal_ids is None:
                 result.append(np.zeros((0,5)))
@@ -143,12 +151,14 @@ def test(data, debug=False):
 
             # Run the regressor
             proposal_bboxes = np.squeeze(proposal_bboxes)
-            proposal_features = np.squeeze(features[proposal_ids,:])
+            proposal_features = np.squeeze(proposal_features)
             # print "Proposal boxes", proposal_bboxes.shape
             # proposal_bboxes = predictBoundingBox(regression_models[c], proposal_features, proposal_bboxes)
             # print "Proposals after regression", proposal_bboxes.shape
             # Run NMS
+            # print 'B:',np.max([proposal_bboxes[:,4]]),proposal_bboxes[0,4]
             proposals = nms(proposal_bboxes)
+            # print 'A:',np.max([proposals[:,4]]),proposals[0,4]
             # print "Proposals after nms", proposals.shape
             # result.append(np.hstack((proposals, np.ones((proposals.shape[0], 1)))))
             result.append(proposals)
@@ -180,7 +190,7 @@ def test(data, debug=False):
             else:
                 gt_bboxes_curr_class = None
                 all_gt_bboxes[classes[c-1]].append(np.zeros((0,4)))
-                # util.displayImageWithBboxes(image_name, result[c-1][:10, 0:4], gt_bboxes_curr_class, color=util.COLORS[c])
+            # util.displayImageWithBboxes(image_name, all_pred_bboxes[classes[c-1]][-1][0:10,0:4], gt_bboxes_curr_class, color=util.COLORS[c])
 
     evaluation = [(c,det_eval.det_eval_matlab(all_gt_bboxes[c], all_pred_bboxes[c])) for c in classes]
     total = 0.0
@@ -188,6 +198,7 @@ def test(data, debug=False):
     print '-----------------'
     for c,e in evaluation:
         ap, _, _ = e
+        print c,ap
         print '%s: %0.4f'%(c, ap)
         total += ap
     print '%s: %0.4f'%('mAP', total/3)
