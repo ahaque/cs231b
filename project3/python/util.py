@@ -66,21 +66,29 @@ def randomColor():
 #	displayImageWithBboxes("img123.jpg", [[0 0 125 200]])
 #
 def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None): 
-	print bboxes
 	bboxes = bboxes.astype(np.int32)
+
+	if bboxes.shape[0] == 0:
+		bboxes = []
+	elif bboxes.shape[0] == 1 or len(bboxes.shape) == 1:
+		bboxes = [bboxes]
+	
 	img = cv2.imread(os.path.join(IMG_DIR, image_name))
 
 	cv2.imshow("Original", img)
+	pred_bboxes = 0
 	for bbox in bboxes:
+		pred_bboxes += 1
+		print bbox
 		if color is None:
 			box_color = randomColor()
 		else:
 			box_color = color
 		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), box_color, thickness=1)
 
-	title = "Image (GT bboxes : %d)"%(0)
+	title = "Image (GT bboxes : %d, PRED bboxes : %d)"%(0, pred_bboxes)
 	if gt_bboxes is not None:
-		title = "Image (GT bboxes : %d)"%(len(gt_bboxes))
+		title = "Image (GT bboxes : %d, PRED bboxes : %d)"%(len(gt_bboxes), pred_bboxes)
 		for gt_bbox in gt_bboxes:
 			if color is None:
 				box_color = randomColor()
@@ -95,17 +103,17 @@ def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None):
 	cv2.destroyWindow(title)
 
 def normalizeFeaturesIndependent(features):
-    # If no features, return
-    if features.shape[0] == 0:
-        return features
+	# If no features, return
+	if features.shape[0] == 0:
+		return features
 
-    mu = np.mean(features, axis=1)
-    std = np.std(features, axis=1)
+	mu = np.mean(features, axis=1)
+	std = np.std(features, axis=1)
 
-    result = features - np.tile(mu, (features.shape[1], 1)).T
-    result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
+	result = features - np.tile(mu, (features.shape[1], 1)).T
+	result = np.divide(result, np.tile(std, (features.shape[1], 1)).T)
 
-    return result
+	return result
 
 ################################################################
 # normalizeFeatures(features)
@@ -116,29 +124,27 @@ def normalizeFeaturesIndependent(features):
 # Output: result (n x NUM_CNN_FEATURES matrix)
 #
 def normalizeFeatures(features):
-    # If no features, return
-    if features.shape[0] == 0:
-        return features
+	# If no features, return
+	if features.shape[0] == 0:
+		return features
 
-    mu = np.mean(features, axis=0)
-    std = np.std(features, axis=0)
+	mu = np.mean(features, axis=0)
+	std = np.std(features, axis=0)
 
-    result = features - np.tile(mu, (features.shape[0], 1))
-    result = np.divide(result, np.tile(std, (features.shape[0], 1)))
+	result = features - np.tile(mu, (features.shape[0], 1))
+	result = np.divide(result, np.tile(std, (features.shape[0], 1)))
 
-    return result
+	return result
 
 def normalizeAndAddBias(X, scaler = None):
-    # X_t = normalizeFeatures(X) # Normalize
-    # scaler = None
-    # X_t = np.concatenate((5*np.ones((X_t.shape[0], 1)), X_t), axis=1) # Add the bias term
-    # 
-    if scaler is None:
-        scaler = preprocessing.StandardScaler().fit(X)
-    X_t = scaler.transform(X)
+	if scaler is None:
+		scaler = preprocessing.StandardScaler().fit(X)
 
-    # print 'dfsakjfdhaskjsdfah:', X.shape, X_t.shape
-    return X_t, scaler
+	# X_t = normalizeFeatures(X) # Normalize
+	# X_t = np.concatenate((50*np.ones((X_t.shape[0], 1)), X_t), axis=1) # Add the bias term
+	X_t = scaler.transform(X)
+	
+	return X_t, scaler
 
 def stack(data):
 	result = None
