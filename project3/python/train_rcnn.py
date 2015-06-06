@@ -49,6 +49,7 @@ def getTrainingFeatures(image_names, data, class_id):
                 # plt.show()
                  
                 assert(max(IDX) < num_gt_bboxes)
+                assert((features.shape[0] - num_gt_bboxes) == regions.shape[0])
 
                 # Select Positive/Negatives Regions
                 positive_idx = np.where(highest_overlaps > POSITIVE_THRESHOLD)[0]
@@ -79,7 +80,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
 
     X_pos, X_neg = getTrainingFeatures(train_set_images, data["train"], class_id)
     X_pos_val, X_neg_val = getTrainingFeatures(val_set_images, data["train"], class_id)
-    X_pos_test, X_neg_test = getTrainingFeatures(test_set_images, data["test"], class_id)
+    # X_pos_test, X_neg_test = getTrainingFeatures(test_set_images, data["test"], class_id)
 
     model = None
     scaler = None
@@ -89,8 +90,8 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
     X_neg = util.stack(X_neg)
     X_pos_val = util.stack(X_pos_val)
     X_neg_val = util.stack(X_neg_val)
-    X_pos_test = util.stack(X_pos_test)
-    X_neg_test = util.stack(X_neg_test)
+    # X_pos_test = util.stack(X_pos_test)
+    # X_neg_test = util.stack(X_neg_test)
     end_time = time.time()
     if debug: print 'Stacking took: %f'%(end_time - start_time)
 
@@ -220,7 +221,7 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=Fa
     model, scaler = trainSVM(X_pos, hard_negs, model=model, debug=True)
 
     getValidationAccuracy(model, scaler, X_pos_val, X_neg_val)
-    getValidationAccuracy(model, scaler, X_pos_test, X_neg_test)
+    # getValidationAccuracy(model, scaler, X_pos_test, X_neg_test)
 
     return (model, scaler)
 
@@ -330,6 +331,9 @@ def trainSGDClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug
 
                 X = util.stack([curr_pos, curr_neg])
                 y = np.squeeze(util.stack([y_pos, y_neg]))
+
+                X = util.normalizeFeatures(X)
+
                 model.fit(X,y)
 
                 y_hat = model.predict(X)
@@ -360,6 +364,8 @@ def trainSGDClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug
     print "Negative Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==0)) / np.sum(y==0)
     print "Training Accuracy:", 1.0 * np.sum(y == y_hat) / y.shape[0]
     print "-----------------------"
+
+    return model, None
 
 
 def getValidationAccuracy(model, scaler, X_pos_val, X_neg_val):
@@ -422,7 +428,7 @@ def trainSVM(pos_features, neg_features, model=None, debug=False):
     y = np.squeeze(np.vstack(tuple(y)))
 
     # Train the SVM
-    model = svm.LinearSVC(penalty="l2", dual=False, class_weight={1:10}, fit_intercept=True, intercept_scaling=50, C=0.0001)
+    model = svm.LinearSVC(penalty="l2", dual=False, class_weight={1:6}, fit_intercept=True, intercept_scaling=50, C=0.001)
     if debug: print "Training SVM..."
     # print X.shape, y.shape
     model.fit(X, y)

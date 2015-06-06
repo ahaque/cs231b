@@ -46,10 +46,11 @@ def detect(image_name, model, data, debug=False):
     features = np.load(os.path.join(FEATURES_DIR, image_name + '.npy'))
 
     # Get rid of GT_Bbox features from feature matrix
-    gt_bboxes = data["test"]["gt"][image_name]
+    gt_bboxes = data["gt"][image_name]
     num_gt_bboxes = 0
     if len(gt_bboxes[0]) != 0:
         num_gt_bboxes = len(gt_bboxes[0][0])
+    # print '%s: Removing %d gt bboxes'%(image_name,num_gt_bboxes), data["gt"][image_name][0]
     features = features[num_gt_bboxes:, :]
 
     result_bboxes = []
@@ -64,7 +65,7 @@ def detect(image_name, model, data, debug=False):
     y_hat = model.predict(X)
     confidence_scores = model.decision_function(X)
 
-    all_regions = data["test"]["ssearch"][image_name]
+    all_regions = data["ssearch"][image_name]
 
     IDX = np.where(y_hat == 1)[0]
 
@@ -76,6 +77,8 @@ def detect(image_name, model, data, debug=False):
     candidates = all_regions[IDX, :]
     candidates_features = features[IDX, :]
     candidate_conf = confidence_scores[IDX]
+
+    assert(np.min(candidate_conf) >= 0)
 
     # print "Candidate conf", candidate_conf.shape
     sorted_IDX = np.argsort(-1*candidate_conf)
@@ -113,25 +116,29 @@ def detect(image_name, model, data, debug=False):
     return IDX[sorted_IDX], candidates, candidates_features
 
 def test(data, debug=False):
+    # classes = ['CAR']
+    class_ids = [1,2,3]
     # Load the models
     regression_models = None
-    model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
-    with open(model_file_name) as fp:
-        regression_models = cp.load(fp)
+    # model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
+    # with open(model_file_name) as fp:
+    #     regression_models = cp.load(fp)
 
     svm_models = dict()
-    for c in [1,2,3]:
+    for c in class_ids:
         model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(c, FEATURE_LAYER))
         with open(model_file_name) as fp:
             svm_models[c] = cp.load(fp)
 
-    # Test on the test set (or validation set)
-    num_images = len(data["test"]["gt"].keys())
-    rcnn_result = dict()
-    all_gt_bboxes = {'CAR':[], 'CAT':[], 'PERSON':[]}
-    all_pred_bboxes = {'CAR':[], 'CAT':[], 'PERSON':[]}
+    local_data = data['test']
 
-    for i, image_name in enumerate(data["test"]["gt"].keys()):
+    # Test on the test set (or validation set)
+    num_images = len(local_data["gt"].keys())
+    rcnn_result = dict()
+    all_gt_bboxes = {c:[] for c in classes}
+    all_pred_bboxes = {c:[] for c in classes}
+
+    for i, image_name in enumerate(local_data["gt"].keys()):
         if i%25 == 0:
             print 'Processing Image #%d/%d'%(i+1, num_images)
         result = []
@@ -141,9 +148,9 @@ def test(data, debug=False):
         
         # features = np.load(features_file_name)
 
-        for c in [1,2,3]:
+        for c in class_ids:
             # Run the detector
-            proposal_ids, proposal_bboxes, proposal_features = detect(image_name, svm_models[c], data)
+            proposal_ids, proposal_bboxes, proposal_features = detect(image_name, svm_models[c], local_data)
             # If no boxes were detected
             if proposal_ids is None:
                 result.append(np.zeros((0,5)))
@@ -152,12 +159,17 @@ def test(data, debug=False):
             # Run the regressor
             proposal_bboxes = np.squeeze(proposal_bboxes)
             proposal_features = np.squeeze(proposal_features)
+            if len(proposal_bboxes.shape) == 1:
+                proposal_bboxes = np.reshape(proposal_bboxes, (1,5))
             # print "Proposal boxes", proposal_bboxes.shape
             # proposal_bboxes = predictBoundingBox(regression_models[c], proposal_features, proposal_bboxes)
             # print "Proposals after regression", proposal_bboxes.shape
             # Run NMS
             # print 'B:',np.max([proposal_bboxes[:,4]]),proposal_bboxes[0,4]
+            # print proposal_bboxes
             proposals = nms(proposal_bboxes)
+            # for b in proposal_bboxes.tolist():
+            #     print "[%0.2f %0.2f %0.2f %0.2f] %0.4f"%tuple(b)
             # print 'A:',np.max([proposals[:,4]]),proposals[0,4]
             # print "Proposals after nms", proposals.shape
             # result.append(np.hstack((proposals, np.ones((proposals.shape[0], 1)))))
@@ -168,18 +180,20 @@ def test(data, debug=False):
 
         # Visualize images
         num_gt_bboxes = 0
-        if len(data["test"]["gt"][image_name][0]) != 0:
-            num_gt_bboxes = len(data["test"]["gt"][image_name][0][0])
+        if len(local_data["gt"][image_name][0]) != 0:
+            num_gt_bboxes = len(local_data["gt"][image_name][0][0])
         if num_gt_bboxes > 0:
-            labels = np.array(data["test"]["gt"][image_name][0][0])
-            gt_bboxes = np.array(data["test"]["gt"][image_name][1])
+            labels = np.array(local_data["gt"][image_name][0][0])
+            gt_bboxes = np.array(local_data["gt"][image_name][1])
         else:
             labels = np.array([])
             gt_bboxes = np.array([])
 
-        for c in [1,2,3]:
+        for c in class_ids:
+            top_bbox = np.array([])
             if result[c-1].shape[0] > 0:
                 all_pred_bboxes[classes[c-1]].append(result[c-1])
+                top_bbox = np.array(result[c-1][0, 0:4])
             else:
                 all_pred_bboxes[classes[c-1]].append(np.zeros((0,5)))
 
@@ -190,9 +204,9 @@ def test(data, debug=False):
             else:
                 gt_bboxes_curr_class = None
                 all_gt_bboxes[classes[c-1]].append(np.zeros((0,4)))
-            # util.displayImageWithBboxes(image_name, all_pred_bboxes[classes[c-1]][-1][0:10,0:4], gt_bboxes_curr_class, color=util.COLORS[c])
-
-    evaluation = [(c,det_eval.det_eval_matlab(all_gt_bboxes[c], all_pred_bboxes[c])) for c in classes]
+            # util.displayImageWithBboxes(image_name, all_pred_bboxes[classes[c-1]][-1][0:2,0:4], gt_bboxes_curr_class, color=util.COLORS[c])
+    
+    evaluation = [(c,det_eval.det_eval(all_gt_bboxes[c], all_pred_bboxes[c])) for c in classes]
     total = 0.0
     print 'Average Precision'
     print '-----------------'
