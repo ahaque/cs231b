@@ -105,8 +105,14 @@ def main():
         models = []
         threads = []
 
-        if not os.path.isdir(MODELS_DIR):
-            os.makedirs(MODELS_DIR)
+        # Make directory creating thread safe
+        # Sometimes many threads don't fine MODELS_DIR
+        # but only one can create it
+        try:
+            if not os.path.isdir(MODELS_DIR):
+                os.makedirs(MODELS_DIR)
+        except:
+            pass
 
         for class_id in [1,2,3]:
             # Train a SVM for this class
@@ -139,6 +145,7 @@ def main():
             for i, image_name in enumerate(payload):
                 start = time.time()
                 # Do NOT use opencv to read the file. Caffe needs images in BGR format
+                # CAFFE LOADS R-G-B, thats why channel_swap needed
                 img = caffe.io.load_image(os.path.join(IMG_DIR, image_name))
 
                 # Also need to extract features from GT bboxes
@@ -175,8 +182,9 @@ def initCaffeNetwork(gpu_id):
     offset = np.floor((original_img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
     original_img_mean = original_img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
     # Must be in the form (3,227,227)
-    img_mean = np.swapaxes(original_img_mean,0,1)
-    img_mean = np.swapaxes(img_mean,0,2)    
+    # K,H,W (https://github.com/BVLC/caffe/blob/master/python/caffe/io.py Line 136)
+    img_mean = np.swapaxes(original_img_mean,0,2)
+
     # Used for warping
     original_img_mean = original_img_mean.astype(np.uint8)
 
@@ -186,11 +194,14 @@ def initCaffeNetwork(gpu_id):
     if GPU_MODE == True:
         caffe.set_mode_gpu()
         local_id = gpu_id % 4
-        caffe.set_device(0)
+        caffe.set_device(local_id)
     else:
         caffe.set_mode_cpu()
 
-    net = caffe.Classifier(MODEL_DEPLOY, MODEL_SNAPSHOT, mean=img_mean, channel_swap=[2,1,0], raw_scale=255)
+    # Channel Swap is because images are RGB, we want BGR
+    # Raw Scale is because sklearn (which caffe uses) loads pixels into [0,1] range
+    # Mean image is so that its subtracted from every image
+    net = caffe.Classifier(MODEL_DEPLOY, MODEL_SNAPSHOT, channel_swap=[2,1,0], mean=img_mean, raw_scale=255)
     return net
 
 
@@ -239,19 +250,24 @@ def extractRegionFeatsFromImage(net, img, regions):
             
             warped = warpRegion(padded_img, regions[idx])
             #padded_region_img = getPaddedRegion(img, regions[idx])
-            #resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE)) 
+            #resized = cv2.resize(padded_region_img, (CNN_INPUT_SIZE, CNN_INPUT_SIZE))
+
+            # Swap W,H to H,W -> pycaffe expects this 
+            warped = np.swapaxes(warped,0,1) 
             img_batch.append(warped)
 
         #print "\tBatch %i creation: %f seconds" % (b, time.time() - start)
         # Run the actual CNN to extract features
         start = time.time()
-        scores = net.predict(img_batch)
+
+        # Turn off oversampling so that all our images are processed
+        scores = net.predict(img_batch, oversample=False)
         print "\tBatch %i / %i: %f seconds" % (b+1, num_batches, time.time() - start)
 
         # The last batch will not be completely full so we don't want to save all of them
         start_idx = b*CNN_BATCH_SIZE
         features[start_idx:start_idx+num_in_this_batch,:] = net.blobs[FEATURE_LAYER].data[0:num_in_this_batch,:]
-        
+
     return features
 
 ################################################################
@@ -343,8 +359,4 @@ if __name__ == "__main__":
 
 
 ## TODO
-# Randomly select validation set
 # Argparse all the gazillion options
-# Try L2 later, try strength
-# More positive examples from overlapping boxes
-# Weigh the positive examples more

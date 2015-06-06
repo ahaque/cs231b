@@ -72,6 +72,8 @@ def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None):
 		bboxes = []
 	elif bboxes.shape[0] == 1 or len(bboxes.shape) == 1:
 		bboxes = [bboxes]
+	else:
+		bboxes = bboxes.tolist()
 	
 	img = cv2.imread(os.path.join(IMG_DIR, image_name))
 
@@ -84,7 +86,7 @@ def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None):
 			box_color = randomColor()
 		else:
 			box_color = color
-		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), box_color, thickness=1)
+		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), thickness=4)
 
 	title = "Image (GT bboxes : %d, PRED bboxes : %d)"%(0, pred_bboxes)
 	if gt_bboxes is not None:
@@ -141,8 +143,8 @@ def normalizeAndAddBias(X, scaler = None):
 		scaler = preprocessing.StandardScaler().fit(X)
 
 	# X_t = normalizeFeatures(X) # Normalize
-	# X_t = np.concatenate((50*np.ones((X_t.shape[0], 1)), X_t), axis=1) # Add the bias term
 	X_t = scaler.transform(X)
+	# X_t = np.concatenate((50*np.ones((X_t.shape[0], 1)), X_t), axis=1) # Add the bias term
 	
 	return X_t, scaler
 

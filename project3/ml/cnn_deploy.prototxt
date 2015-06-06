@@ -252,3 +252,9 @@ layer {
     }
   }
 }
+layer {
+  name: "relu6"
+  type: "ReLU"
+  bottom: "fc6_ft"
+  top: "fc6_ft"
+}
