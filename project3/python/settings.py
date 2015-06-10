@@ -7,7 +7,7 @@ ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 global IMG_DIR
 IMG_DIR = "../images" # IMG_DIR contains all images
 global FEATURES_DIR
-FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/cnn512_fc6_relu" # FEATURES_DIR stores the region features for each image
 global MODELS_DIR
 MODELS_DIR = '../models/iterative_2/'
 
@@ -38,7 +38,7 @@ CONTEXT_SIZE = 16 # Context or 'padding' size around region proposals in pixels
 # Check the deploy.prototxt file for a list of layers/feature outputs
 global FEATURE_LAYER
 FEATURE_LAYER = "fc6_ft"
-global NUM_CNN_FEATURES
+global NUM_CNN_FEATURESls
 NUM_CNN_FEATURES = 512
 
 global NUM_CLASSES

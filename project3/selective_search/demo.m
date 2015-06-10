@@ -53,6 +53,16 @@ k = 200; % controls size of segments of initial segmentation.
 minSize = k;
 sigma = 0.8;
 
+
+% Get the list of images
+image_names = dir(fullfile('/home/albert/Github/cs231b/project3/images'));
+
+for i = 1:length(image_names)
+   fprintf('%s\n',image_names(i).name) 
+end
+
+return
+
 % As an example, use a single image
 images = {'000015.jpg'};
 im = imread(images{1});
@@ -62,8 +72,9 @@ im = imread(images{1});
 boxes = BoxRemoveDuplicates(boxes);
 
 % Show boxes
-ShowRectsWithinImage(boxes, 5, 5, im);
+%ShowRectsWithinImage(boxes, 5, 5, im);
 
 % Show blobs which result from first similarity function
 hBlobs = RecreateBlobHierarchyIndIm(blobIndIm, blobBoxes, hierarchy{1});
-ShowBlobs(hBlobs, 5, 5, im);
+%ShowBlobs(hBlobs, 5, 5, im);
+
