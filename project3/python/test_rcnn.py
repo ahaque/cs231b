@@ -113,6 +113,8 @@ def detect(image_name, model, data, debug=False):
     # result_bboxes = np.array([result_bboxes])
     # result_bboxes = np.array([result_bboxes])
     # result_idx = np.array([result_idx])
+
+    # If we have a single candidate, the features will be of size (512) but we need it to be (1,512)    
     return IDX[sorted_IDX], candidates, candidates_features
 
 def test(data, debug=False):
@@ -120,9 +122,9 @@ def test(data, debug=False):
     class_ids = [1,2,3]
     # Load the models
     regression_models = None
-    # model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
-    # with open(model_file_name) as fp:
-    #     regression_models = cp.load(fp)
+    model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
+    with open(model_file_name) as fp:
+         regression_models = cp.load(fp)
 
     svm_models = dict()
     for c in class_ids:
@@ -151,18 +153,19 @@ def test(data, debug=False):
         for c in class_ids:
             # Run the detector
             proposal_ids, proposal_bboxes, proposal_features = detect(image_name, svm_models[c], local_data)
+            
             # If no boxes were detected
             if proposal_ids is None:
                 result.append(np.zeros((0,5)))
                 continue
 
             # Run the regressor
-            proposal_bboxes = np.squeeze(proposal_bboxes)
-            proposal_features = np.squeeze(proposal_features)
+            #proposal_bboxes = np.squeeze(proposal_bboxes)
+            #proposal_features = np.squeeze(proposal_features)
             if len(proposal_bboxes.shape) == 1:
                 proposal_bboxes = np.reshape(proposal_bboxes, (1,5))
             # print "Proposal boxes", proposal_bboxes.shape
-            # proposal_bboxes = predictBoundingBox(regression_models[c], proposal_features, proposal_bboxes)
+            proposal_bboxes = predictBoundingBox(regression_models[c], proposal_features, proposal_bboxes)
             # print "Proposals after regression", proposal_bboxes.shape
             # Run NMS
             # print 'B:',np.max([proposal_bboxes[:,4]]),proposal_bboxes[0,4]
