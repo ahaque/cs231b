@@ -7,9 +7,9 @@ ML_DIR = "../ml" # ML_DIR contains matlab matrix files and caffe model
 global IMG_DIR
 IMG_DIR = "../images" # IMG_DIR contains all images
 global FEATURES_DIR
-FEATURES_DIR = "../features/cnn512_fc6" # FEATURES_DIR stores the region features for each image
+FEATURES_DIR = "../features/do_not_touch" # FEATURES_DIR stores the region features for each image
 global MODELS_DIR
-MODELS_DIR = '../models/hyperparams/svm_000-01000_50_0010_30000/'
+MODELS_DIR = '../models/best/'
 
 global MODEL_DEPLOY
 MODEL_DEPLOY = "../ml/cnn_deploy.prototxt" # CNN architecture file
@@ -52,6 +52,9 @@ global NEGATIVE_THRESHOLD
 NEGATIVE_THRESHOLD = 0.3
 global BBOX_POSITIVE_THRESHOLD
 BBOX_POSITIVE_THRESHOLD = 0.6
+
+global MULTIVARIATE_REGRESSION
+MULTIVARIATE_REGRESSION = True
 
 # END REQUIRED INPUT PARAMETERS
 ################################################################

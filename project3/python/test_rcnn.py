@@ -144,7 +144,7 @@ def test(data, enable_bbox_regression=False, models_dir=MODELS_DIR, debug=False)
 
     for i, image_name in enumerate(local_data["gt"].keys()):
         if i%25 == 0:
-            print 'Processing Image #%d/%d'%(i+1, num_images)
+            print 'Processing Image %d/%d'%(i, num_images)
         result = []
         # features_file_name = os.path.join(FEATURES_DIR, image_name + '.npy')
         # if not os.path.isfile(features_file_name):
@@ -219,8 +219,8 @@ def test(data, enable_bbox_regression=False, models_dir=MODELS_DIR, debug=False)
     print '-----------------'
     for c,e in evaluation:
         ap, _, _ = e
-        print c,ap
-        print '%s: %0.4f'%(c, ap)
+        print c, ap
+        #print '%s: %0.4f'%(c, ap)
         total += ap
     print '%s: %0.4f'%('mAP', total/3)
 

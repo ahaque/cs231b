@@ -32,6 +32,7 @@ def trainBboxRegressionForClass(data, class_id):
             print 'ERROR: Missing features file \'%s\''%(features_file_name) 
             sys.exit(1)
 
+        print features_file_name
         features = np.load(features_file_name)
 
         if len(data["train"]["gt"][image_name][0]) == 0:
@@ -79,22 +80,35 @@ def trainBboxRegressionForClass(data, class_id):
     X_train = util.stack(X_train)
     y_train = util.stack(y_train)
 
-    print 'Num training examples:',X_train.shape[0]
+
+    print 'X_train:', X_train.shape, 'Y_train', y_train.shape
     # Now train 4 different regressions, one for each bbox parameter (y_train)
     # So in total, for the three classes, we will have 12 regressions
-    for i in xrange(y_train.shape[1]):
-        model = linear_model.Ridge(alpha = 10000)
-	model.fit(X_train, y_train[:,i])
+    if MULTIVARIATE_REGRESSION == False:
+        for i in xrange(y_train.shape[1]):
+            model = linear_model.Ridge(alpha = 40000)
+            model.fit(X_train, y_train[:,i])
+            y_hat = model.predict(X_train)
+            print 'Error (Model %d, Class %d): %0.2f'%(i+1, class_id, np.mean(np.abs(y_hat - y_train[:,i])))
+            models.append(model)
+    else:
+        model = linear_model.Ridge(alpha = 40000)
+        model.fit(X_train, y_train)
         y_hat = model.predict(X_train)
-        print 'Error (Model %d, Class %d): %0.2f'%(i+1, class_id, np.mean(np.abs(y_hat - y_train[:,i])))
+        l2norm = np.sum(np.abs(y_hat - y_train)**2,axis=-1)**(1./2)
+        print 'Multivariate Error (Model %d, Class %d): %0.2f'%(i+1, class_id, np.mean(l2norm))
         models.append(model)
 
     return models
 
 def predictBoundingBox(models, features, bboxes):
     targets = np.zeros((features.shape[0], 4))
-    for i, model in enumerate(models):
-        targets[:,i] = model.predict(features)
+
+    if MULTIVARIATE_REGRESSION == False:
+        for i, model in enumerate(models):
+            targets[:,i] = model.predict(features)
+    else:
+        targets = models[0].predict(features)
 
     # Convert from targets to bboxes
     Px = 0.5 * (bboxes[:,0]+bboxes[:,2])
