@@ -4,6 +4,7 @@ import sys
 
 import numpy as np
 
+from scipy.io import loadmat
 from sklearn import preprocessing
 from settings import *
 
@@ -68,9 +69,11 @@ def randomColor():
 def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None): 
 	bboxes = bboxes.astype(np.int32)
 
+	print 'bboxes:',bboxes.shape,'\n',bboxes,'\n'
+
 	if bboxes.shape[0] == 0:
 		bboxes = []
-	elif bboxes.shape[0] == 1 or len(bboxes.shape) == 1:
+	elif len(bboxes.shape) == 1:
 		bboxes = [bboxes]
 	else:
 		bboxes = bboxes.tolist()
@@ -158,3 +161,32 @@ def stack(data):
 		result = np.vstack(tuple(data))
 
 	return result
+
+################################################################
+# readMatrixData()
+#   Reads the Matlab matrix data into a nice dictionary format
+#
+# Input: "train" or "test"
+# Output: A dictionary data, see examples below
+#   data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
+#   data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
+#   data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
+def readMatrixData(phase):
+    # Read the matrix files
+    raw_ims = {}
+    raw_ims.update(loadmat(os.path.join(ML_DIR, phase + "_ims.mat")))
+
+    raw_ssearch = {}
+    raw_ssearch.update(loadmat(os.path.join(ML_DIR, "ssearch_" + phase + ".mat")))
+
+    # Populate our new, cleaner dictionary
+    data = {}
+    data["gt"] = {}
+    data["ssearch"] = {}
+
+    for i in xrange(raw_ims["images"].shape[1]):
+        filename, labels, bboxes = raw_ims["images"][0,i]
+        data["gt"][filename[0]] = (labels, bboxes.astype(np.int32))
+        data["ssearch"][filename[0]] = raw_ssearch["ssearch_boxes"][0,i].astype(np.int32)
+
+    return data

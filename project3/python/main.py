@@ -9,7 +9,6 @@ import cPickle as cp
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.io import loadmat
 from train_rcnn import *
 from test_rcnn import *
 from train_bbox import *
@@ -47,8 +46,8 @@ def main():
     # data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
     # data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
     data = {}
-    data["train"] = readMatrixData("train")
-    data["test"] = readMatrixData("test")
+    data["train"] = util.readMatrixData("train")
+    data["test"] = util.readMatrixData("test")
 
     if args.mode == "trainbbox":
         # Models is a dict of size 3 (one for each class)
@@ -178,7 +177,7 @@ def chunks(items, num_gpus):
 def initCaffeNetwork(gpu_id):
     # Extract the image mean and compute the cropped mean
     global original_img_mean
-    original_img_mean = loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
+    original_img_mean = util.loadmat(os.path.join(ML_DIR, "ilsvrc_2012_mean.mat"))["image_mean"]
     offset = np.floor((original_img_mean.shape[0] - CNN_INPUT_SIZE)/2) + 1
     original_img_mean = original_img_mean[offset:offset+CNN_INPUT_SIZE, offset:offset+CNN_INPUT_SIZE, :]
     # Must be in the form (3,227,227)
@@ -324,35 +323,6 @@ def warpRegion(padded_img, bbox, debug=False):
         cv2.waitKey(0)
 
     return resized_img
-
-################################################################
-# readMatrixData()
-#   Reads the Matlab matrix data into a nice dictionary format
-#
-# Input: "train" or "test"
-# Output: A dictionary data, see examples below
-#   data["train"]["gt"]["2008_007640.jpg"] = tuple( class_labels, gt_bboxes )
-#   data["train"]["gt"]["2008_007640.jpg"] = tuple( [[2]] , [[ 90,  85, 500, 366]] )
-#   data["train"]["ssearch"]["2008_007640.jpg"] = n x 4 matrix of region proposals (bboxes)
-def readMatrixData(phase):
-    # Read the matrix files
-    raw_ims = {}
-    raw_ims.update(loadmat(os.path.join(ML_DIR, phase + "_ims.mat")))
-
-    raw_ssearch = {}
-    raw_ssearch.update(loadmat(os.path.join(ML_DIR, "ssearch_" + phase + ".mat")))
-
-    # Populate our new, cleaner dictionary
-    data = {}
-    data["gt"] = {}
-    data["ssearch"] = {}
-
-    for i in xrange(raw_ims["images"].shape[1]):
-        filename, labels, bboxes = raw_ims["images"][0,i]
-        data["gt"][filename[0]] = (labels, bboxes.astype(np.int32))
-        data["ssearch"][filename[0]] = raw_ssearch["ssearch_boxes"][0,i].astype(np.int32)
-
-    return data
 
 if __name__ == "__main__":
     main()
