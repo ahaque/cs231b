@@ -115,7 +115,7 @@ def detect(image_name, model, data, debug=False):
     # result_idx = np.array([result_idx])
     return IDX[sorted_IDX], candidates, candidates_features
 
-def test(data, debug=False):
+def test(data, models_dir=MODELS_DIR, debug=False):
     # classes = ['CAR']
     class_ids = [1,2,3]
     # Load the models
@@ -126,7 +126,7 @@ def test(data, debug=False):
 
     svm_models = dict()
     for c in class_ids:
-        model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(c, FEATURE_LAYER))
+        model_file_name = os.path.join(models_dir, 'svm_%d_%s.mdl'%(c, FEATURE_LAYER))
         with open(model_file_name) as fp:
             svm_models[c] = cp.load(fp)
 
@@ -216,6 +216,8 @@ def test(data, debug=False):
         print '%s: %0.4f'%(c, ap)
         total += ap
     print '%s: %0.4f'%('mAP', total/3)
+
+    return (evaluation, total/3)
         
 
 def main():
