@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--mode", help="extract, train, test, or trainbbox", required=True)
     parser.add_argument("--num_gpus", help="For feature extraction, total number of GPUs you will use")
     parser.add_argument("--gpu_id", help="For feature extraction, GPU ID [0,num_gpus) for which part to run")
+    parser.add_argument("--enable_bbox_regression", action='store_true', help="Enable regression during test time")
     args = parser.parse_args()
 
     if args.mode not in ["extract", "train", "test", "trainbbox", "testbbox"]:
@@ -123,7 +124,10 @@ def main():
 
     # Equivalent to the starter code: test_rcnn.m
     if args.mode == "test":
-        test(data)
+        if args.enable_bbox_regression:
+            test(data, enable_bbox_regression=True)
+        else:
+            test(data)
 
     # Equivalent to the starter code: extract_region_feats.m
     if args.mode == "extract":

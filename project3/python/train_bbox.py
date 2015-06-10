@@ -83,7 +83,7 @@ def trainBboxRegressionForClass(data, class_id):
     # Now train 4 different regressions, one for each bbox parameter (y_train)
     # So in total, for the three classes, we will have 12 regressions
     for i in xrange(y_train.shape[1]):
-        model = linear_model.Ridge(alpha = 10)
+        model = linear_model.Ridge(alpha = 10000)
 	model.fit(X_train, y_train[:,i])
         y_hat = model.predict(X_train)
         print 'Error (Model %d, Class %d): %0.2f'%(i+1, class_id, np.mean(np.abs(y_hat - y_train[:,i])))
