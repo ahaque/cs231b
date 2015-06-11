@@ -225,22 +225,21 @@ def trainClassifierForClass(data, class_id, epochs=1, memory_size=30000, C=0.01,
         return (model, scaler)
 
 def trainSGDClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug=False):
-    X_pos = []
-    X_neg = []
-    X_pos_val = []
-    X_neg_val = []
-
     # Split train into train and val set
     val_set_images = set(random.sample(data["train"]["gt"].keys(), 100))
+    X_pos_val, X_neg_val = getTrainingFeatures(val_set_images, data["train"], class_id)
+    X_pos_val = util.stack(X_pos_val)
+    X_neg_val = util.stack(X_neg_val)
 
-    num_images = len(data["train"]["gt"].keys())
+    train_set_images = list(set(data["train"]["gt"].keys()) - set(val_set_images))
+    
+    model = SGDClassifier(class_weight={1:200}, warm_start=True, alpha=10)
+
+    curr_pos = []
+    curr_neg = []
+    num_images = len(train_set_images)
     start_time = time.time()
-
-    model = SGDClassifier(class_weight='auto', warm_start=True, alpha=0.001)
-
-    for i, image_name in enumerate(data["train"]["gt"].keys()):
-        curr_pos = []
-        curr_neg = []
+    for i, image_name in enumerate(train_set_images):
         # Load features from file for current image
         features_file_name = os.path.join(FEATURES_DIR, image_name + '.npy')
         if not os.path.isfile(features_file_name):
@@ -254,22 +253,14 @@ def trainSGDClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug
         # Case 2: No GT boxes in image for current class
         # Case 3: GT boxes in image for current class
         if num_gt_bboxes == 0: # Case 1
-            if image_name in val_set_images:
-                X_neg_val.append(features)
-            else:
-                X_neg.append(features)
-                curr_neg.append(features)
+            curr_neg.append(features)
         else:
             labels = np.array(data["train"]["gt"][image_name][0][0])
             gt_bboxes = np.array(data["train"]["gt"][image_name][1])
             IDX = np.where(labels == class_id)[0]
 
             if len(IDX) == 0: # Case 2
-                if image_name in val_set_images:
-                    X_neg_val.append(features)
-                else:
-                    X_neg.append(features)
-                    curr_neg.append(features)
+                curr_neg.append(features)
             else:
                 regions = data["train"]["ssearch"][image_name]
 
@@ -278,93 +269,52 @@ def trainSGDClassifierForClass(data, class_id, epochs=1, memory_size=1000, debug
                     overlaps[:,j] = util.computeOverlap(gt_bbox, regions)
                 highest_overlaps = overlaps.max(axis=1)
 
-                # TODO: PLOTTT THIISSS
-                # import matplotlib.pyplot as plt
-                # plt.hist(highest_overlaps[highest_overlaps>0.001], bins=200)
-                # plt.show()
-                 
-                assert(max(IDX) < num_gt_bboxes)
-
                 # Select Positive/Negatives Regions
                 positive_idx = np.where(highest_overlaps > POSITIVE_THRESHOLD)[0]
                 positive_idx += num_gt_bboxes
-                # X_pos.append(features[IDX, :]) # GT box
-                # X_pos.append(features[positive_idx, :]) # GT box overlapping regions
-                if image_name in val_set_images:
-                    X_pos_val.append(features[IDX, :])
-                    X_pos_val.append(features[positive_idx, :])
-                else:
-                    X_pos.append(features[IDX, :])
-                    X_pos.append(features[positive_idx, :])
-                    curr_pos.append(features[IDX, :])
-                    curr_pos.append(features[positive_idx, :])
+                curr_pos.append(features[IDX, :])
+                curr_pos.append(features[positive_idx, :])
                 
-
                 # Only add negative examples where bbox is far from all GT boxes
                 negative_idx = np.where(highest_overlaps < NEGATIVE_THRESHOLD)[0]
                 negative_idx += num_gt_bboxes
-                if image_name in val_set_images:
-                    X_neg_val.append(features[negative_idx, :])
-                else:
-                    X_neg.append(features[negative_idx, :])
-                    curr_neg.append(features[negative_idx, :])
+                curr_neg.append(features[negative_idx, :])
 
-            if image_name not in val_set_images:
-                if len(curr_pos) == 0:
-                    continue
-                curr_pos = util.stack(curr_pos)
-                curr_neg = util.stack(curr_neg)
+            
+            if len(curr_pos) == 0 or len(curr_neg) == 0:
+                continue
 
-                if debug: print curr_pos.shape
-                if debug: print curr_neg.shape
+            curr_pos = util.stack(curr_pos)
+            curr_neg = util.stack(curr_neg)
+            y_pos = np.ones((curr_pos.shape[0],1))
+            y_neg = np.zeros((curr_neg.shape[0],1))
 
-                y_pos = np.ones((0,1))
-                y_neg = np.zeros((0,1))
+            # if debug: print curr_pos.shape
+            # if debug: print curr_neg.shape
 
-                if curr_pos is not None:
-                    y_pos = np.ones((curr_pos.shape[0],1))
-                else:
-                    curr_pos = np.zeros((0, 512))
-                if curr_neg is not None:
-                    y_neg = np.zeros((curr_neg.shape[0],1))
+            # y_pos = np.ones((0,1))
+            # y_neg = np.zeros((0,1))
 
-                X = util.stack([curr_pos, curr_neg])
-                y = np.squeeze(util.stack([y_pos, y_neg]))
+            # if curr_pos is not None:
+            #     y_pos = np.ones((curr_pos.shape[0],1))
+            # else:
+            #     curr_pos = np.zeros((0, 512))
+            # if curr_neg is not None:
+            #     y_neg = np.zeros((curr_neg.shape[0],1))
 
-                X = util.normalizeFeatures(X)
+            X = util.stack([curr_pos, curr_neg])
+            y = np.squeeze(util.stack([y_pos, y_neg]))
+            model.fit(X,y)    
 
-                model.fit(X,y)
-
-                y_hat = model.predict(X)
-                print "Positive Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==1)) / np.sum(y==1)
-                print "Negative Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==0)) / np.sum(y==0)
-                print "Training Accuracy:", 1.0 * np.sum(y == y_hat) / y.shape[0]
-
-                curr_pos = []
-                curr_neg = []
+            curr_pos = []
+            curr_neg = []
 
         if (i+1) % 50 == 0:
             print "Finished %i / %i.\tElapsed: %f" % (i+1, num_images, time.time()-start_time)
-
-    print '\n\n'
-    print 'Validation set accuracy'
-    print '-----------------------'
-    X_pos_val = util.stack(X_pos_val)
-    X_neg_val = util.stack(X_neg_val)
-    X = util.stack([X_pos_val, X_neg_val])
-    y = [np.ones((X_pos_val.shape[0], 1)), np.zeros((X_neg_val.shape[0], 1))]
-    y = np.squeeze(np.vstack(tuple(y)))
-
-    print X.shape, y.shape
     
-    # Classify negative features using small_svm
-    y_hat = model.predict(X)
-    print "Positive Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==1)) / np.sum(y==1)
-    print "Negative Accuracy:", 1.0 * np.sum(np.logical_and(y == y_hat, y==0)) / np.sum(y==0)
-    print "Training Accuracy:", 1.0 * np.sum(y == y_hat) / y.shape[0]
-    print "-----------------------"
+    getValidationAccuracy(model, 'NO_NORMALIZE', X_pos_val, X_neg_val)
 
-    return model, None
+    return model, 'NO_NORMALIZE'
 
 
 def getValidationAccuracy(model, scaler, X_pos_val, X_neg_val, evaluate=False, output_dir=MODELS_DIR):
@@ -384,7 +334,7 @@ def getValidationAccuracy(model, scaler, X_pos_val, X_neg_val, evaluate=False, o
     y = [np.ones((X_pos_val.shape[0], 1)), np.zeros((X_neg_val.shape[0], 1))]
     y = np.squeeze(np.vstack(tuple(y)))
 
-    print X.shape, y.shape
+    # print X.shape, y.shape
     
     # Classify negative features using small_svm
     y_hat = model.predict(X)

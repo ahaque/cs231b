@@ -7,7 +7,6 @@ from settings import *
 
 import cPickle as cp
 import numpy as np
-import matplotlib.pyplot as plt
 
 from train_rcnn import *
 from test_rcnn import *
@@ -15,29 +14,43 @@ from train_bbox import *
 
 try:
     import caffe
+    extraction_enabled = True
 except ImportError:
-    print 'Warning: Caffe not found, extract mode will not function'
+    print '[WARNING] Caffe not found, extract mode will not function'
+    extraction_enabled = False
 
 original_img_mean = None
 
 def main():
-    # init_globals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", help="extract, train, test, or trainbbox", required=True)
+    parser = argparse.ArgumentParser(description='R-CNN object Classification.')
+    parser.add_argument("--mode", choices=['extract', 'train', 'trainsgd', 'test', 'trainbbox', 'testbbox'], help="extract, train, trainsgd, test, or trainbbox", required=True)
+
+    # Extract mode
     parser.add_argument("--num_gpus", help="For feature extraction, total number of GPUs you will use")
     parser.add_argument("--gpu_id", help="For feature extraction, GPU ID [0,num_gpus) for which part to run")
-    parser.add_argument("--enable_bbox_regression", action='store_true', help="Enable regression during test time")
+
+    # Test mode
+    parser.add_argument("--bbox_regression", default='none', choices=['none', 'normal', 'multivariate'], help="none, normal, multivariate")
     args = parser.parse_args()
 
-    if args.mode not in ["extract", "train", "test", "trainbbox", "testbbox"]:
-        print "\tError: MODE must be one of: 'extract' 'train' 'test'"
-        sys.exit(-1)
-
     if args.mode == "extract":
-        if args.num_gpus is None or args.gpu_id is None:
-            print "\tFor extraction mode, must specify number of GPUs and this GPU id"
-            print "\tpython main.py --mode extract --num_gpus NUM_GPUS --gpu_id GPU_ID"
-            sys.exit(-1)
+        print 'EXTRACT MODE'
+        print '------------'
+        if not extraction_enabled:
+            print '[ERROR] You do not have pycaffe installed. Aborting...'
+            sys.exit(1)
+
+        if args.num_gpus is None:
+            print '[INFO] NUM_GPUS not specified. Assuming 1 GPU only.'
+            args.num_gpus = 1
+
+        if args.gpu_id is None:
+            print '[INFO] GPU_ID not specified. Assuming 1 GPU only, i.e. id=0.'
+            args.gpu_id = 0
+        
+        print '[INFO] Features will be extracted into %s'%FEATURES_DIR
+        print '[INFO] CNN params will be loaded from %s'%MODEL_DEPLOY
+        print '[INFO] Trained CNN will be loaded from %s'%MODEL_SNAPSHOT
 
         num_gpus = int(args.num_gpus)
         gpu_id = int(args.gpu_id)
@@ -51,11 +64,18 @@ def main():
     data["test"] = util.readMatrixData("test")
 
     if args.mode == "trainbbox":
+        print 'BOUNDING BOX REGRESSOR TRAINING'
+        print '-------------------------------'
+        if args.bbox_regression == 'none':
+            args.bbox_regression = 'normal'
+        print '[INFO] Training a %s regressor'%(args.bbox_regression)
+        print '[INFO] Regressor will be saved in %s'%(MODELS_DIR)
+
         # Models is a dict of size 3 (one for each class)
         # each class/entry contains a list of 4 classifiers, one for each bbox parameter
         models = dict()
         for class_id in [1,2,3]:
-            models[class_id] = trainBboxRegressionForClass(data, class_id)
+            models[class_id] = trainBboxRegressionForClass(data, class_id, bbox_regression=args.bbox_regression)
 
         model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
         with open(model_file_name, 'w') as fp:
@@ -101,6 +121,10 @@ def main():
 
     # Equivalent to the starter code: train_rcnn.m
     if args.mode == "train":
+        print 'RCNN TRAINING'
+        print '-------------'
+        print "[INFO] Trained SVM's will be saved in %s"%(MODELS_DIR)
+        print '[INFO] Features will be loaded from %s'%(FEATURES_DIR)
         # For each object class
         models = []
         threads = []
@@ -121,13 +145,39 @@ def main():
             with open(model_file_name, 'w') as fp:
                 cp.dump(model, fp)
 
+    if args.mode == "trainsgd":
+        print 'RCNN TRAINING'
+        print '-------------'
+        print "[INFO] Trained SGD classifiers will be saved in %s"%(MODELS_DIR)
+        print '[INFO] Features will be loaded from %s'%(FEATURES_DIR)
+         # For each object class
+        models = []
+        threads = []
+
+        # Make directory creating thread safe
+        # Sometimes many threads don't fine MODELS_DIR
+        # but only one can create it
+        try:
+            if not os.path.isdir(MODELS_DIR):
+                os.makedirs(MODELS_DIR)
+        except:
+            pass
+
+        for class_id in [1,2,3]:
+            # Train a SVM for this class
+            model = trainSGDClassifierForClass(data, class_id, debug=True)
+            model_file_name = os.path.join(MODELS_DIR, 'svm_%d_%s.mdl'%(class_id, FEATURE_LAYER))
+            with open(model_file_name, 'w') as fp:
+                cp.dump(model, fp)
 
     # Equivalent to the starter code: test_rcnn.m
     if args.mode == "test":
-        if args.enable_bbox_regression:
-            test(data, enable_bbox_regression=True)
-        else:
-            test(data)
+        print 'RCNN TESTING'
+        print '-------------'
+        print "[INFO] Trained SVM's will be loaded in %s"%(MODELS_DIR)
+        print '[INFO] Features will be loaded from %s'%(FEATURES_DIR)
+        print '[INFO] Type of bounding box regression: %s'%(args.bbox_regression)
+        test(data, bbox_regression=args.bbox_regression)
 
     # Equivalent to the starter code: extract_region_feats.m
     if args.mode == "extract":

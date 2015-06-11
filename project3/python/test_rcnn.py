@@ -32,7 +32,7 @@ def nms(data, debug=False):
 
         # if len(np.where(overlaps < 0.3)[0]) == 0:
         #     break
-        candidates = rest_candidates[np.where(overlaps < 0.5)[0], :]
+        candidates = rest_candidates[np.where(overlaps < NMS_THRESHOLD)[0], :]
     if debug: print np.array(results).shape[0]
     return np.array(results)
 
@@ -96,34 +96,18 @@ def detect(image_name, model, data, debug=False):
 
     result_bboxes.append(candidates)
     result_features.append(candidates_features)
-    # result_conf.append(candidate_conf)
+    
     # Result idx is the idx of detected bboxes in the original 2000 proposals
     result_idx.append(IDX[sorted_IDX])
     
-
-    #print candidates.shape[0]
-    #candidates = nms(candidates)
-    #print candidates.shape[0]
-
-    #print '\tClass: %s --> %d / %d'%(classes[i], len(np.where(y_hat == 1)[0]), y_hat.shape[0])
-    #util.displayImageWithBboxes(image_name, candidates[0:20,:])
-
-    #print result_bboxes[np.argmax(result_conf)]
-    #util.displayImageWithBboxes(image_name, np.array([result_bboxes[np.argmax(result_conf)]]))
-    
-    # result_bboxes = np.array([result_bboxes])
-    # result_bboxes = np.array([result_bboxes])
-    # result_idx = np.array([result_idx])
-
-    # If we have a single candidate, the features will be of size (512) but we need it to be (1,512)    
     return IDX[sorted_IDX], candidates, candidates_features
 
-def test(data, enable_bbox_regression=False, models_dir=MODELS_DIR, debug=False):
+def test(data, bbox_regression='none', models_dir=MODELS_DIR, debug=False):
     # classes = ['CAR']
     class_ids = [1,2,3]
     # Load the models
     regression_models = None
-    if enable_bbox_regression:
+    if bbox_regression != 'none':
         model_file_name = os.path.join(MODELS_DIR, 'bbox_ridge_reg.mdl')
         with open(model_file_name) as fp:
              regression_models = cp.load(fp)
@@ -162,24 +146,11 @@ def test(data, enable_bbox_regression=False, models_dir=MODELS_DIR, debug=False)
                 continue
 
             # Run the regressor
-            #proposal_bboxes = np.squeeze(proposal_bboxes)
-            #proposal_features = np.squeeze(proposal_features)
             if len(proposal_bboxes.shape) == 1:
                 proposal_bboxes = np.reshape(proposal_bboxes, (1,5))
-            # print "Proposal boxes", proposal_bboxes.shape
-            # 
-            if enable_bbox_regression:
-                proposal_bboxes = predictBoundingBox(regression_models[c], proposal_features, proposal_bboxes)
-            # print "Proposals after regression", proposal_bboxes.shape
-            # Run NMS
-            # print 'B:',np.max([proposal_bboxes[:,4]]),proposal_bboxes[0,4]
-            # print proposal_bboxes
+            if bbox_regression != 'none':
+                proposal_bboxes = predictBoundingBox(regression_models[c], proposal_features, proposal_bboxes, regression_type=bbox_regression)
             proposals = nms(proposal_bboxes)
-            # for b in proposal_bboxes.tolist():
-            #     print "[%0.2f %0.2f %0.2f %0.2f] %0.4f"%tuple(b)
-            # print 'A:',np.max([proposals[:,4]]),proposals[0,4]
-            # print "Proposals after nms", proposals.shape
-            # result.append(np.hstack((proposals, np.ones((proposals.shape[0], 1)))))
             result.append(proposals)
         
         # Store the result
@@ -211,7 +182,6 @@ def test(data, enable_bbox_regression=False, models_dir=MODELS_DIR, debug=False)
             else:
                 gt_bboxes_curr_class = None
                 all_gt_bboxes[classes[c-1]].append(np.zeros((0,4)))
-            # util.displayImageWithBboxes(image_name, all_pred_bboxes[classes[c-1]][-1][0:2,0:4], gt_bboxes_curr_class, color=util.COLORS[c])
     
     evaluation = [(c,det_eval.det_eval(all_gt_bboxes[c], all_pred_bboxes[c])) for c in classes]
     total = 0.0

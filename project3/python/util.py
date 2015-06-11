@@ -89,7 +89,7 @@ def displayImageWithBboxes(image_name, bboxes, gt_bboxes=None, color=None):
 			box_color = randomColor()
 		else:
 			box_color = color
-		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), thickness=4)
+		cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), box_color, thickness=4)
 
 	title = "Image (GT bboxes : %d, PRED bboxes : %d)"%(0, pred_bboxes)
 	if gt_bboxes is not None:
@@ -144,6 +144,8 @@ def normalizeFeatures(features):
 def normalizeAndAddBias(X, scaler = None):
 	if scaler is None:
 		scaler = preprocessing.StandardScaler().fit(X)
+	elif scaler == 'NO_NORMALIZE':
+		return X, 'NO_NORMALIZE'
 
 	# X_t = normalizeFeatures(X) # Normalize
 	X_t = scaler.transform(X)
