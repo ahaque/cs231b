@@ -174,7 +174,7 @@ def main():
     if args.mode == "test":
         print 'RCNN TESTING'
         print '-------------'
-        print "[INFO] Trained SVM's will be loaded in %s"%(MODELS_DIR)
+        print "[INFO] Trained SVM's will be loaded from %s"%(MODELS_DIR)
         print '[INFO] Features will be loaded from %s'%(FEATURES_DIR)
         print '[INFO] Type of bounding box regression: %s'%(args.bbox_regression)
         test(data, bbox_regression=args.bbox_regression)

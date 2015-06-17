@@ -1,0 +1,1024 @@
+Num Positive: (2280, 512)
+Num Negatives: (30000, 512)
+Num Total: 32280
+Positive Accuracy: 0.722807017544
+Negative Accuracy: 0.902333333333
+Training Accuracy: 0.889653035936
+Total Time: 16 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.474719101124
+Negative Accuracy: 0.997717621636
+Training Accuracy: 0.996939057129
+-------------------------------------
+
+Num Positive: (2683, 512)
+Num Negatives: (30000, 512)
+Num Total: 32683
+Positive Accuracy: 0.928065598211
+Negative Accuracy: 0.912166666667
+Training Accuracy: 0.913471835511
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.656324582339
+Negative Accuracy: 0.997656046532
+Training Accuracy: 0.997003830719
+-------------------------------------
+
+Num Positive: (2961, 512)
+Num Negatives: (30000, 512)
+Num Total: 32961
+Positive Accuracy: 0.727119216481
+Negative Accuracy: 0.820866666667
+Training Accuracy: 0.81244501077
+Total Time: 16 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.561797752809
+Negative Accuracy: 0.996818898509
+Training Accuracy: 0.996106083899
+-------------------------------------
+
+Num Positive: (2261, 512)
+Num Negatives: (30000, 512)
+Num Total: 32261
+Positive Accuracy: 0.705882352941
+Negative Accuracy: 0.9034
+Training Accuracy: 0.889557050308
+Total Time: 16 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.64
+Negative Accuracy: 0.996390115836
+Training Accuracy: 0.99579841234
+-------------------------------------
+
+Num Positive: (2671, 512)
+Num Negatives: (30000, 512)
+Num Total: 32671
+Positive Accuracy: 0.917259453388
+Negative Accuracy: 0.915766666667
+Training Accuracy: 0.915888708641
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.719257540603
+Negative Accuracy: 0.996721297988
+Training Accuracy: 0.996230211691
+-------------------------------------
+
+Num Positive: (2910, 512)
+Num Negatives: (30000, 512)
+Num Total: 32910
+Positive Accuracy: 0.713058419244
+Negative Accuracy: 0.826366666667
+Training Accuracy: 0.816347614707
+Total Time: 14 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.611793611794
+Negative Accuracy: 0.99633063301
+Training Accuracy: 0.995638306814
+-------------------------------------
+
+Num Positive: (65260, 512)
+Num Negatives: (30000, 512)
+Num Total: 95260
+Positive Accuracy: 1.0
+Negative Accuracy: 0.0
+Training Accuracy: 0.68507243334
+Total Time: 15 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 1.0
+Negative Accuracy: 0.0
+Training Accuracy: 0.0413022589209
+-------------------------------------
+
+Num Positive: (2312, 512)
+Num Negatives: (30000, 512)
+Num Total: 32312
+Positive Accuracy: 0.731833910035
+Negative Accuracy: 0.894066666667
+Training Accuracy: 0.882458529339
+Total Time: 14 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.601851851852
+Negative Accuracy: 0.996622988727
+Training Accuracy: 0.996007772818
+-------------------------------------
+
+Num Positive: (2794, 512)
+Num Negatives: (30000, 512)
+Num Total: 32794
+Positive Accuracy: 0.915175375805
+Negative Accuracy: 0.906033333333
+Training Accuracy: 0.906812221748
+Total Time: 7 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.772727272727
+Negative Accuracy: 0.997610460076
+Training Accuracy: 0.997299782458
+-------------------------------------
+
+Num Positive: (2811, 512)
+Num Negatives: (30000, 512)
+Num Total: 32811
+Positive Accuracy: 0.722162931341
+Negative Accuracy: 0.834633333333
+Training Accuracy: 0.824997714181
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.606719367589
+Negative Accuracy: 0.995143159129
+Training Accuracy: 0.994303940699
+-------------------------------------
+
+Num Positive: (1281, 512)
+Num Negatives: (30000, 512)
+Num Total: 31281
+Positive Accuracy: 0.672911787666
+Negative Accuracy: 0.946133333333
+Training Accuracy: 0.934944535021
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.59595959596
+Negative Accuracy: 0.99824190544
+Training Accuracy: 0.997908763536
+-------------------------------------
+
+Num Positive: (1569, 512)
+Num Negatives: (30000, 512)
+Num Total: 31569
+Positive Accuracy: 0.940089228808
+Negative Accuracy: 0.9642
+Training Accuracy: 0.963001678862
+Total Time: 6 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.552995391705
+Negative Accuracy: 0.997646620895
+Training Accuracy: 0.997247899767
+-------------------------------------
+
+Num Positive: (1574, 512)
+Num Negatives: (30000, 512)
+Num Total: 31574
+Positive Accuracy: 0.68043202033
+Negative Accuracy: 0.917466666667
+Training Accuracy: 0.905650218534
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.416309012876
+Negative Accuracy: 0.997634225445
+Training Accuracy: 0.997052188299
+-------------------------------------
+
+Num Positive: (710, 512)
+Num Negatives: (30000, 512)
+Num Total: 30710
+Positive Accuracy: 0.583098591549
+Negative Accuracy: 0.9759
+Training Accuracy: 0.966818625855
+Total Time: 9 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.322033898305
+Negative Accuracy: 0.999132166676
+Training Accuracy: 0.998785655117
+-------------------------------------
+
+Num Positive: (779, 512)
+Num Negatives: (30000, 512)
+Num Total: 30779
+Positive Accuracy: 0.925545571245
+Negative Accuracy: 0.984733333333
+Training Accuracy: 0.983235322785
+Total Time: 4 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.406451612903
+Negative Accuracy: 0.998736769321
+Training Accuracy: 0.998330136822
+-------------------------------------
+
+Num Positive: (1022, 512)
+Num Negatives: (30000, 512)
+Num Total: 31022
+Positive Accuracy: 0.573385518591
+Negative Accuracy: 0.950433333333
+Training Accuracy: 0.938011733608
+Total Time: 9 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.453125
+Negative Accuracy: 0.998478229734
+Training Accuracy: 0.998165974807
+-------------------------------------
+
+Num Positive: (4104, 512)
+Num Negatives: (30000, 512)
+Num Total: 34104
+Positive Accuracy: 0.734892787524
+Negative Accuracy: 0.7474
+Training Accuracy: 0.745894909688
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.578602620087
+Negative Accuracy: 0.993455156731
+Training Accuracy: 0.992646088204
+-------------------------------------
+
+Num Positive: (4191, 512)
+Num Negatives: (30000, 512)
+Num Total: 34191
+Positive Accuracy: 0.905511811024
+Negative Accuracy: 0.8461
+Training Accuracy: 0.853382469071
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.738760631835
+Negative Accuracy: 0.996596019579
+Training Accuracy: 0.995720269908
+-------------------------------------
+
+Num Positive: (5262, 512)
+Num Negatives: (30000, 512)
+Num Total: 35262
+Positive Accuracy: 0.835613835044
+Negative Accuracy: 0.414333333333
+Training Accuracy: 0.477199251319
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.763157894737
+Negative Accuracy: 0.982394089787
+Training Accuracy: 0.981633752868
+-------------------------------------
+
+Num Positive: (6846, 512)
+Num Negatives: (30000, 512)
+Num Total: 36846
+Positive Accuracy: 0.921706105755
+Negative Accuracy: 0.2825
+Training Accuracy: 0.401264723444
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.792452830189
+Negative Accuracy: 0.636828052688
+Training Accuracy: 0.637558685446
+-------------------------------------
+
+Num Positive: (6695, 512)
+Num Negatives: (30000, 512)
+Num Total: 36695
+Positive Accuracy: 0.895892457058
+Negative Accuracy: 0.710233333333
+Training Accuracy: 0.744106826543
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.755415162455
+Negative Accuracy: 0.994618812144
+Training Accuracy: 0.993543202912
+-------------------------------------
+
+Num Positive: (9659, 512)
+Num Negatives: (30000, 512)
+Num Total: 39659
+Positive Accuracy: 0.977533906201
+Negative Accuracy: 0.255566666667
+Training Accuracy: 0.431402708086
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.923592493298
+Negative Accuracy: 0.496958112759
+Training Accuracy: 0.499828635851
+-------------------------------------
+
+Num Positive: (7119, 512)
+Num Negatives: (30000, 512)
+Num Total: 37119
+Positive Accuracy: 0.929765416491
+Negative Accuracy: 0.259566666667
+Training Accuracy: 0.388103127778
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.860228716645
+Negative Accuracy: 0.875601509812
+Training Accuracy: 0.875547593264
+-------------------------------------
+
+Num Positive: (6549, 512)
+Num Negatives: (30000, 512)
+Num Total: 36549
+Positive Accuracy: 0.888685295465
+Negative Accuracy: 0.7177
+Training Accuracy: 0.748337847821
+Total Time: 14 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.799043062201
+Negative Accuracy: 0.993984857836
+Training Accuracy: 0.99292815769
+-------------------------------------
+
+Num Positive: (9430, 512)
+Num Negatives: (30000, 512)
+Num Total: 39430
+Positive Accuracy: 0.954506892895
+Negative Accuracy: 0.274233333333
+Training Accuracy: 0.436926198326
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.891923300407
+Negative Accuracy: 0.906344322344
+Training Accuracy: 0.906241167767
+-------------------------------------
+
+Num Positive: (6714, 512)
+Num Negatives: (30000, 512)
+Num Total: 36714
+Positive Accuracy: 0.924486148347
+Negative Accuracy: 0.301166666667
+Training Accuracy: 0.415154981751
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.83389261745
+Negative Accuracy: 0.575872569255
+Training Accuracy: 0.577288082549
+-------------------------------------
+
+Num Positive: (6809, 512)
+Num Negatives: (30000, 512)
+Num Total: 36809
+Positive Accuracy: 0.883977089147
+Negative Accuracy: 0.6949
+Training Accuracy: 0.729875845581
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.889336016097
+Negative Accuracy: 0.992381664375
+Training Accuracy: 0.991927873646
+-------------------------------------
+
+Num Positive: (9480, 512)
+Num Negatives: (30000, 512)
+Num Total: 39480
+Positive Accuracy: 0.963291139241
+Negative Accuracy: 0.319233333333
+Training Accuracy: 0.473885511651
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.979054458408
+Negative Accuracy: 0.809164442582
+Training Accuracy: 0.810447619521
+-------------------------------------
+
+Num Positive: (6975, 512)
+Num Negatives: (30000, 512)
+Num Total: 36975
+Positive Accuracy: 0.920716845878
+Negative Accuracy: 0.249833333333
+Training Accuracy: 0.376389452333
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.820622986037
+Negative Accuracy: 0.729128072125
+Training Accuracy: 0.729502255685
+-------------------------------------
+
+Num Positive: (6521, 512)
+Num Negatives: (30000, 512)
+Num Total: 36521
+Positive Accuracy: 0.896794970097
+Negative Accuracy: 0.721033333333
+Training Accuracy: 0.752416417951
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.795631825273
+Negative Accuracy: 0.992940415098
+Training Accuracy: 0.991794290893
+-------------------------------------
+
+Num Positive: (9945, 512)
+Num Negatives: (30000, 512)
+Num Total: 39945
+Positive Accuracy: 0.971644042232
+Negative Accuracy: 0.3261
+Training Accuracy: 0.486819376643
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.951077943615
+Negative Accuracy: 0.706282967216
+Training Accuracy: 0.707590066457
+-------------------------------------
+
+Num Positive: (11578, 512)
+Num Negatives: (30000, 512)
+Num Total: 41578
+Positive Accuracy: 0.994299533598
+Negative Accuracy: 0.1755
+Training Accuracy: 0.403506662177
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.990825688073
+Negative Accuracy: 0.273931037043
+Training Accuracy: 0.279685198822
+-------------------------------------
+
+Num Positive: (10812, 512)
+Num Negatives: (30000, 512)
+Num Total: 40812
+Positive Accuracy: 0.93636699963
+Negative Accuracy: 0.2006
+Training Accuracy: 0.395520925218
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.908177905308
+Negative Accuracy: 0.971301796627
+Training Accuracy: 0.970928233321
+-------------------------------------
+
+Num Positive: (16714, 512)
+Num Negatives: (30000, 512)
+Num Total: 46714
+Positive Accuracy: 0.999880339835
+Negative Accuracy: 0.0108
+Training Accuracy: 0.364687245794
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.999689633768
+Negative Accuracy: 0.125838337099
+Training Accuracy: 0.138330345892
+-------------------------------------
+
+Num Positive: (2269, 512)
+Num Negatives: (30000, 512)
+Num Total: 32269
+Positive Accuracy: 0.749228735126
+Negative Accuracy: 0.903733333333
+Training Accuracy: 0.892869317301
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.525885558583
+Negative Accuracy: 0.997081987032
+Training Accuracy: 0.996331159527
+-------------------------------------
+
+Num Positive: (2676, 512)
+Num Negatives: (30000, 512)
+Num Total: 32676
+Positive Accuracy: 0.938714499253
+Negative Accuracy: 0.934733333333
+Training Accuracy: 0.935059370792
+Total Time: 7 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.786384976526
+Negative Accuracy: 0.99743031565
+Training Accuracy: 0.997005705218
+-------------------------------------
+
+Num Positive: (2800, 512)
+Num Negatives: (30000, 512)
+Num Total: 32800
+Positive Accuracy: 0.750357142857
+Negative Accuracy: 0.865833333333
+Training Accuracy: 0.855975609756
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.647969052224
+Negative Accuracy: 0.995918418035
+Training Accuracy: 0.995175348011
+-------------------------------------
+
+Num Positive: (2279, 512)
+Num Negatives: (30000, 512)
+Num Total: 32279
+Positive Accuracy: 0.746379991224
+Negative Accuracy: 0.908433333333
+Training Accuracy: 0.896991852288
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.658263305322
+Negative Accuracy: 0.99690077218
+Training Accuracy: 0.9963244408
+-------------------------------------
+
+Num Positive: (2749, 512)
+Num Negatives: (30000, 512)
+Num Total: 32749
+Positive Accuracy: 0.966169516188
+Negative Accuracy: 0.962066666667
+Training Accuracy: 0.962411065987
+Total Time: 5 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.696883852691
+Negative Accuracy: 0.998055591641
+Training Accuracy: 0.997610738704
+-------------------------------------
+
+Num Positive: (2802, 512)
+Num Negatives: (30000, 512)
+Num Total: 32802
+Positive Accuracy: 0.792291220557
+Negative Accuracy: 0.887766666667
+Training Accuracy: 0.879610999329
+Total Time: 10 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.683495145631
+Negative Accuracy: 0.996577435521
+Training Accuracy: 0.995791065158
+-------------------------------------
+
+Num Positive: (2235, 512)
+Num Negatives: (30000, 512)
+Num Total: 32235
+Positive Accuracy: 0.723937360179
+Negative Accuracy: 0.897433333333
+Training Accuracy: 0.885404063906
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.456359102244
+Negative Accuracy: 0.996834650331
+Training Accuracy: 0.995849358537
+-------------------------------------
+
+Num Positive: (2650, 512)
+Num Negatives: (30000, 512)
+Num Total: 32650
+Positive Accuracy: 0.900377358491
+Negative Accuracy: 0.8945
+Training Accuracy: 0.894977029096
+Total Time: 7 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.734513274336
+Negative Accuracy: 0.99598345714
+Training Accuracy: 0.995462854877
+-------------------------------------
+
+Num Positive: (2896, 512)
+Num Negatives: (30000, 512)
+Num Total: 32896
+Positive Accuracy: 0.701312154696
+Negative Accuracy: 0.798066666667
+Training Accuracy: 0.789548881323
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.548693586698
+Negative Accuracy: 0.99550276953
+Training Accuracy: 0.994687696341
+-------------------------------------
+
+Num Positive: (2184, 512)
+Num Negatives: (30000, 512)
+Num Total: 32184
+Positive Accuracy: 0.678571428571
+Negative Accuracy: 0.8964
+Training Accuracy: 0.881618195377
+Total Time: 15 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.488938053097
+Negative Accuracy: 0.996718637029
+Training Accuracy: 0.995657120657
+-------------------------------------
+
+Num Positive: (2714, 512)
+Num Negatives: (30000, 512)
+Num Total: 32714
+Positive Accuracy: 0.883935151069
+Negative Accuracy: 0.871433333333
+Training Accuracy: 0.872470501926
+Total Time: 9 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.724226804124
+Negative Accuracy: 0.996077669064
+Training Accuracy: 0.995622792529
+-------------------------------------
+
+Num Positive: (2965, 512)
+Num Negatives: (30000, 512)
+Num Total: 32965
+Positive Accuracy: 0.651602023609
+Negative Accuracy: 0.7716
+Training Accuracy: 0.760806916427
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.525568181818
+Negative Accuracy: 0.996586479491
+Training Accuracy: 0.995863860426
+-------------------------------------
+
+Num Positive: (2173, 512)
+Num Negatives: (30000, 512)
+Num Total: 32173
+Positive Accuracy: 0.706396686608
+Negative Accuracy: 0.899566666667
+Training Accuracy: 0.886519752588
+Total Time: 16 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.544276457883
+Negative Accuracy: 0.997389633621
+Training Accuracy: 0.996464904702
+-------------------------------------
+
+Num Positive: (2777, 512)
+Num Negatives: (30000, 512)
+Num Total: 32777
+Positive Accuracy: 0.92257832193
+Negative Accuracy: 0.902133333333
+Training Accuracy: 0.903865515453
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.578461538462
+Negative Accuracy: 0.997113091502
+Training Accuracy: 0.996504044297
+-------------------------------------
+
+Num Positive: (2838, 512)
+Num Negatives: (30000, 512)
+Num Total: 32838
+Positive Accuracy: 0.730091613813
+Negative Accuracy: 0.827566666667
+Training Accuracy: 0.81914245691
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.48643006263
+Negative Accuracy: 0.994807943891
+Training Accuracy: 0.993704192219
+-------------------------------------
+
+Num Positive: (2304, 512)
+Num Negatives: (30000, 512)
+Num Total: 32304
+Positive Accuracy: 0.678819444444
+Negative Accuracy: 0.872133333333
+Training Accuracy: 0.858345715701
+Total Time: 16 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.454819277108
+Negative Accuracy: 0.997037413969
+Training Accuracy: 0.996262229571
+-------------------------------------
+
+Num Positive: (2685, 512)
+Num Negatives: (30000, 512)
+Num Total: 32685
+Positive Accuracy: 0.862569832402
+Negative Accuracy: 0.848566666667
+Training Accuracy: 0.849716995564
+Total Time: 11 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.635491606715
+Negative Accuracy: 0.996489900767
+Training Accuracy: 0.99582896106
+-------------------------------------
+
+Num Positive: (2822, 512)
+Num Negatives: (30000, 512)
+Num Total: 32822
+Positive Accuracy: 0.641743444366
+Negative Accuracy: 0.772833333333
+Training Accuracy: 0.761562366705
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.480808080808
+Negative Accuracy: 0.994701011138
+Training Accuracy: 0.993567928731
+-------------------------------------
+
+Num Positive: (2247, 512)
+Num Negatives: (30000, 512)
+Num Total: 32247
+Positive Accuracy: 0.720071206053
+Negative Accuracy: 0.899866666667
+Training Accuracy: 0.887338357056
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.53470437018
+Negative Accuracy: 0.996967919957
+Training Accuracy: 0.996151926306
+-------------------------------------
+
+Num Positive: (2610, 512)
+Num Negatives: (30000, 512)
+Num Total: 32610
+Positive Accuracy: 0.92337164751
+Negative Accuracy: 0.911966666667
+Training Accuracy: 0.912879484821
+Total Time: 7 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.697154471545
+Negative Accuracy: 0.998465302026
+Training Accuracy: 0.99784665334
+-------------------------------------
+
+Num Positive: (2919, 512)
+Num Negatives: (30000, 512)
+Num Total: 32919
+Positive Accuracy: 0.727303871189
+Negative Accuracy: 0.822566666667
+Training Accuracy: 0.814119505453
+Total Time: 12 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.638190954774
+Negative Accuracy: 0.995788907804
+Training Accuracy: 0.995152447477
+-------------------------------------
+
+Num Positive: (2346, 512)
+Num Negatives: (30000, 512)
+Num Total: 32346
+Positive Accuracy: 0.717391304348
+Negative Accuracy: 0.896966666667
+Training Accuracy: 0.883942373091
+Total Time: 15 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.586206896552
+Negative Accuracy: 0.996968943261
+Training Accuracy: 0.996467383295
+-------------------------------------
+
+Num Positive: (2644, 512)
+Num Negatives: (30000, 512)
+Num Total: 32644
+Positive Accuracy: 0.923222390318
+Negative Accuracy: 0.917
+Training Accuracy: 0.917503982355
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.659388646288
+Negative Accuracy: 0.997856434477
+Training Accuracy: 0.997168433807
+-------------------------------------
+
+Num Positive: (2800, 512)
+Num Negatives: (30000, 512)
+Num Total: 32800
+Positive Accuracy: 0.7125
+Negative Accuracy: 0.835966666667
+Training Accuracy: 0.825426829268
+Total Time: 14 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.647969052224
+Negative Accuracy: 0.994615205244
+Training Accuracy: 0.993843038411
+-------------------------------------
+
+Num Positive: (2378, 512)
+Num Negatives: (30000, 512)
+Num Total: 32378
+Positive Accuracy: 0.724558452481
+Negative Accuracy: 0.894966666667
+Training Accuracy: 0.882451047007
+Total Time: 14 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.441860465116
+Negative Accuracy: 0.998298691406
+Training Accuracy: 0.997644657655
+-------------------------------------
+
+Num Positive: (2653, 512)
+Num Negatives: (30000, 512)
+Num Total: 32653
+Positive Accuracy: 0.912928759894
+Negative Accuracy: 0.912333333333
+Training Accuracy: 0.912381710716
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.770601336303
+Negative Accuracy: 0.997300333539
+Training Accuracy: 0.99685798346
+-------------------------------------
+
+Num Positive: (2908, 512)
+Num Negatives: (30000, 512)
+Num Total: 32908
+Positive Accuracy: 0.725928473177
+Negative Accuracy: 0.827666666667
+Training Accuracy: 0.818676309712
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.58924205379
+Negative Accuracy: 0.995229774829
+Training Accuracy: 0.994485294118
+-------------------------------------
+
+Num Positive: (2271, 512)
+Num Negatives: (30000, 512)
+Num Total: 32271
+Positive Accuracy: 0.715543813298
+Negative Accuracy: 0.903066666667
+Training Accuracy: 0.889870162065
+Total Time: 15 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.553424657534
+Negative Accuracy: 0.996065104632
+Training Accuracy: 0.995343853932
+-------------------------------------
+
+Num Positive: (2864, 512)
+Num Negatives: (30000, 512)
+Num Total: 32864
+Positive Accuracy: 0.91969273743
+Negative Accuracy: 0.9093
+Training Accuracy: 0.910205696203
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.693277310924
+Negative Accuracy: 0.997356519936
+Training Accuracy: 0.997044241449
+-------------------------------------
+
+Num Positive: (2705, 512)
+Num Negatives: (30000, 512)
+Num Total: 32705
+Positive Accuracy: 0.741219963031
+Negative Accuracy: 0.8478
+Training Accuracy: 0.8389848647
+Total Time: 13 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.532679738562
+Negative Accuracy: 0.994666619416
+Training Accuracy: 0.993417564941
+-------------------------------------
+

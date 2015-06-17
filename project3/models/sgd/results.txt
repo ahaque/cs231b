@@ -1,0 +1,369 @@
+
+
+Validation set accuracy
+-----------------------
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.530456852792
+Negative Accuracy: 0.468076596829
+Training Accuracy: 0.468184430707
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.950226244344
+Negative Accuracy: 0.865447571178
+Training Accuracy: 0.865624219225
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.851674641148
+Negative Accuracy: 0.414461059112
+Training Accuracy: 0.415227132683
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0
+Negative Accuracy: 0.999755980653
+Training Accuracy: 0.998476830415
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.328293736501
+Negative Accuracy: 0.999073610179
+Training Accuracy: 0.997608907879
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0
+Negative Accuracy: 1.0
+Training Accuracy: 0.998103225405
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0
+Negative Accuracy: 0.999273472722
+Training Accuracy: 0.997721854512
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.234042553191
+Negative Accuracy: 0.998793160395
+Training Accuracy: 0.997274156468
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0
+Negative Accuracy: 0.999075516821
+Training Accuracy: 0.997624970746
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.00808625336927
+Negative Accuracy: 0.999212570402
+Training Accuracy: 0.99757942377
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.00849256900212
+Negative Accuracy: 0.992122994726
+Training Accuracy: 0.990008307392
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.584415584416
+Negative Accuracy: 0.995828594803
+Training Accuracy: 0.994975978899
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0119047619048
+Negative Accuracy: 0.999319153337
+Training Accuracy: 0.997535314258
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.624548736462
+Negative Accuracy: 0.520715513268
+Training Accuracy: 0.520839248686
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.912144702842
+Negative Accuracy: 0.693065804987
+Training Accuracy: 0.693435398022
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.566539923954
+Negative Accuracy: 0.813249729807
+Training Accuracy: 0.81267153805
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0801282051282
+Negative Accuracy: 0.996524900303
+Training Accuracy: 0.995217695441
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.695238095238
+Negative Accuracy: 0.972176953121
+Training Accuracy: 0.971648477469
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.342062193126
+Negative Accuracy: 0.963772135694
+Training Accuracy: 0.962155421538
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.995073891626
+Negative Accuracy: 0.0339324140303
+Training Accuracy: 0.0357426160533
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.922043010753
+Negative Accuracy: 0.635280479454
+Training Accuracy: 0.635757150581
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.22256097561
+Negative Accuracy: 0.987211197809
+Training Accuracy: 0.986122505676
+-------------------------------------
+
+Num Positive: (2330, 512)
+Num Negatives: (30000, 512)
+Num Total: 32330
+Positive Accuracy: 0.727896995708
+Negative Accuracy: 0.901333333333
+Training Accuracy: 0.888833900402
+Total Time: 14 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.480392156863
+Negative Accuracy: 0.997027404772
+Training Accuracy: 0.996376438616
+-------------------------------------
+
+Num Positive: (2625, 512)
+Num Negatives: (30000, 512)
+Num Total: 32625
+Positive Accuracy: 0.91619047619
+Negative Accuracy: 0.911733333333
+Training Accuracy: 0.912091954023
+Total Time: 8 seconds
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.748427672956
+Negative Accuracy: 0.9977040933
+Training Accuracy: 0.997161463444
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.691906005222
+Negative Accuracy: 0.727311741434
+Training Accuracy: 0.72725122502
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0
+Negative Accuracy: 0.999991708745
+Training Accuracy: 0.998592458892
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.482658959538
+Negative Accuracy: 0.768268708279
+Training Accuracy: 0.767832803271
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.623955431755
+Negative Accuracy: 0.525124303491
+Training Accuracy: 0.525285296186
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.882211538462
+Negative Accuracy: 0.809640855777
+Training Accuracy: 0.809772887301
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.875273522976
+Negative Accuracy: 0.550286238008
+Training Accuracy: 0.550968821237
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.41958041958
+Negative Accuracy: 0.873606856405
+Training Accuracy: 0.872758475001
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.741666666667
+Negative Accuracy: 0.960959269062
+Training Accuracy: 0.960500509924
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.779156327543
+Negative Accuracy: 0.753729116945
+Training Accuracy: 0.753772713929
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0028901734104
+Negative Accuracy: 0.999394129692
+Training Accuracy: 0.99787165459
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.477572559367
+Negative Accuracy: 0.983548894521
+Training Accuracy: 0.982712365697
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0
+Negative Accuracy: 0.99997634726
+Training Accuracy: 0.998738507186
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.0380710659898
+Negative Accuracy: 0.998884654708
+Training Accuracy: 0.997287972601
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.62472406181
+Negative Accuracy: 0.974608043626
+Training Accuracy: 0.973934082569
+-------------------------------------
+
+
+
+Validation set accuracy
+-----------------------
+Positive Accuracy: 0.316483516484
+Negative Accuracy: 0.977358044785
+Training Accuracy: 0.976045028012
+-------------------------------------
+
